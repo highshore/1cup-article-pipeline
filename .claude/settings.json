@@ -1,0 +1,40 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(uv add:*)",
+      "Bash(pip show:*)",
+      "Bash(pip3 show:*)",
+      "Bash(curl -s \"https://pypi.org/pypi/mlx-lm/json\")",
+      "Bash(python3 -c ':*)",
+      "Bash(curl -s \"https://huggingface.co/mlx-community/gemma-4-26b-a4b-it-4bit/raw/main/config.json\")",
+      "Bash(curl -s \"https://huggingface.co/mlx-community/gemma-4-26b-a4b-it-4bit/raw/main/README.md\")",
+      "Bash(curl -s \"https://pypi.org/pypi/mlx-vlm/json\")",
+      "Bash(curl -s \"https://api.github.com/repos/Blaizzy/mlx-vlm/git/trees/HEAD?recursive=1\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/Blaizzy/mlx-vlm/main/mlx_vlm/models/gemma4/language.py\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/Blaizzy/mlx-vlm/main/mlx_vlm/models/gemma4/gemma4.py\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/Blaizzy/mlx-vlm/main/mlx_vlm/models/gemma4/README.md\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/Blaizzy/mlx-vlm/main/mlx_vlm/models/gemma4/processing_gemma4.py\")",
+      "Bash(curl -s \"https://huggingface.co/api/models/mlx-community/gemma-4-26b-a4b-it-4bit\")",
+      "Bash(curl -s \"https://huggingface.co/mlx-community/gemma-4-26b-a4b-it-4bit/raw/main/generation_config.json\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/Blaizzy/mlx-vlm/main/mlx_vlm/__init__.py\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/Blaizzy/mlx-vlm/main/mlx_vlm/generate.py\")",
+      "Bash(curl -s \"https://pypi.org/pypi/mlx-vlm/0.4.3/json\")",
+      "Bash(curl -s \"https://huggingface.co/mlx-community/gemma-4-26b-a4b-it-4bit/raw/main/chat_template.jinja\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/Blaizzy/mlx-vlm/main/mlx_vlm/prompt_utils.py\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/Blaizzy/mlx-vlm/main/mlx_vlm/models/gemma4/config.py\")",
+      "Bash(.venv/bin/python -c \"import mlx_vlm; print\\(mlx_vlm.__version__\\)\")",
+      "Bash(.venv/bin/python -c \"import mlx_lm; print\\(mlx_lm.__version__\\)\")",
+      "Bash(.venv/bin/python -c \"import mlx_vlm.models; import pkgutil; print\\([m.name for m in pkgutil.iter_modules\\(mlx_vlm.models.__path__\\)]\\)\")",
+      "Bash(uv pip:*)",
+      "Bash(.venv/bin/pip index:*)",
+      "Bash(uv sync:*)",
+      "Bash(.venv/bin/python -c \"import mlx_vlm; import mlx_vlm.models; import pkgutil; print\\('mlx-vlm', mlx_vlm.__version__\\); print\\([m.name for m in pkgutil.iter_modules\\(mlx_vlm.models.__path__\\)]\\)\")",
+      "Bash(.venv/bin/python -c \"import inspect; from mlx_vlm.prompt_utils import apply_chat_template; print\\(inspect.signature\\(apply_chat_template\\)\\)\")",
+      "Bash(.venv/bin/python -c \"import inspect; from mlx_vlm import generate; print\\(inspect.signature\\(generate\\)\\)\")",
+      "Bash(.venv/bin/python -c \"import inspect; from mlx_vlm.generate import GenerationResult; print\\(GenerationResult.__doc__\\); r = GenerationResult.__annotations__; print\\(r\\)\")",
+      "Bash(.venv/bin/python -c ':*)",
+      "Bash(.venv/bin/python -m article_pipeline --help)",
+      "Read(//Users/flitto/.cache/huggingface/hub/models--mlx-community--gemma-4-26b-a4b-it-4bit/snapshots/8bcfa0de037c2b1bfa323a1e8d1f0132243b9e87/**)"
+    ]
+  }
+}
