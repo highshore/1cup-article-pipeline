@@ -19,15 +19,15 @@ class ArticleBackend(Protocol):
     def refine_article(self, title: str, url: str, raw_article: str) -> dict[str, str]:
         ...
 
-    def resplit_paragraphs(self, refined_article: str, validation_feedback: str | None = None) -> dict[str, list[str]]:
-        ...
-
     def summarize_article(
         self,
         refined_title: str,
         paragraphs_en: list[str],
         validation_feedback: str | None = None,
     ) -> dict[str, list[str]]:
+        ...
+
+    def extract_discussion_topics(self, refined_title: str, summary_en: list[str]) -> dict[str, list[str]]:
         ...
 
     def extract_c1_vocab(self, refined_title: str, paragraphs_en: list[str]) -> dict[str, list[dict[str, str]]]:
@@ -100,32 +100,6 @@ Article:
 """
         return self._json_response(system, user)
 
-    def resplit_paragraphs(self, refined_article: str, validation_feedback: str | None = None) -> dict[str, list[str]]:
-        system = """
-You are restructuring an English article for readability.
-
-Requirements:
-- Split the article into 3 to 6 paragraphs.
-- Preserve the original meaning and sentence order as much as possible.
-- Paragraphs should be balanced and natural.
-- Return JSON:
-  {
-    "paragraphs_en": ["p1", "p2", ...]
-  }
-"""
-        if validation_feedback:
-            system += f"""
-
-Additional validation feedback from the previous attempt:
-- {validation_feedback}
-- Correct the output and follow the schema exactly.
-"""
-
-        user = f"""Refined article:
-{refined_article}
-"""
-        return self._json_response(system, user)
-
     def summarize_article(
         self,
         refined_title: str,
@@ -165,10 +139,15 @@ Paragraphs:
 You are selecting advanced English expressions for Korean learners.
 
 Requirements:
-- Extract vocabulary and expressions that are roughly CEFR C1 or above.
+- Extract vocabulary and expressions that are CEFR C1 or C2 or above.
 - Include only items that are genuinely useful or notable.
 - Avoid trivial words.
 - Return 5 to 12 items.
+- The "term" must be normalized to its dictionary or base form, not the inflected surface form from the article.
+- Prefer the canonical original expression without tense or aspect inflection.
+- For verbs and verbal phrases, remove past tense and -ing forms when possible.
+- Keep multi-word expressions and phrasal verbs together.
+- If the article uses an inflected form like "levelling-off", normalize it to "level-off".
 - Return JSON:
   {
     "c1_vocab": [
@@ -180,12 +159,47 @@ Requirements:
       }
     ]
   }
-"""
+        """
         user = f"""Title:
 {refined_title}
 
 Paragraphs:
 {json.dumps(paragraphs_en, ensure_ascii=False)}
+"""
+        return self._json_response(system, user)
+
+    def extract_discussion_topics(self, refined_title: str, summary_en: list[str]) -> dict[str, list[str]]:
+        system = """
+You are writing discussion prompts for advanced Korean learners based on a news article.
+
+Ground-truth style:
+- Write mostly question-form prompts.
+- Make every prompt open-ended and debate-ready, not factual quiz questions.
+- Favor these frames across the set: agree/disagree stance, stakeholder impact, counterargument, Korea-localized implications, long-term consequences, policy or practical recommendation, and personal or observed parallel case.
+
+Requirements:
+- Return exactly 8 discussion prompts.
+- Write every prompt in natural English.
+- Every prompt must end with a question mark.
+- Include at least one Korea-localized prompt.
+- Korea-localized means applying the article's situation or perspective to Korea, South Korea, Korean society, Korean companies, Korean workers, Korean policy, or the Korean market.
+- Do not switch the prompt language to Korean.
+- Include at least one prompt that explicitly asks for the strongest counterargument, opposing view, criticism, or downside.
+- Include at least one action or policy prompt.
+- Keep each prompt specific to the article, concise, and natural.
+- Return JSON:
+  {
+    "discussion_topics": [
+      "...?",
+      "...?"
+    ]
+  }
+"""
+        user = f"""Title:
+{refined_title}
+
+Summary:
+{json.dumps(summary_en, ensure_ascii=False)}
 """
         return self._json_response(system, user)
 

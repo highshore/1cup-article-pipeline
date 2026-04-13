@@ -39,10 +39,16 @@ class TranslateGemmaTranslator:
         self,
         article_id: str,
         title: str,
+        subtitle: str,
         paragraphs: list[str],
         summary: list[str],
     ) -> dict[str, object]:
         title_result = self._translate_text(article_id=article_id, section="title", order=1, text=title)
+        subtitle_result = (
+            self._translate_text(article_id=article_id, section="subtitle", order=1, text=subtitle)
+            if subtitle.strip()
+            else None
+        )
         paragraph_results = [
             self._translate_text(article_id=article_id, section="paragraph", order=index, text=paragraph)
             for index, paragraph in enumerate(paragraphs, start=1)
@@ -52,9 +58,10 @@ class TranslateGemmaTranslator:
             for index, bullet in enumerate(summary, start=1)
         ]
 
-        all_results = [title_result, *paragraph_results, *summary_results]
+        all_results = [title_result, *([subtitle_result] if subtitle_result else []), *paragraph_results, *summary_results]
         return {
             "title_ko": title_result.translation,
+            "subtitle_ko": subtitle_result.translation if subtitle_result else "",
             "paragraphs_ko": [result.translation for result in paragraph_results],
             "summary_ko": [result.translation for result in summary_results],
             "translation_meta": {

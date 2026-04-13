@@ -13,12 +13,15 @@ class ArticleState(TypedDict, total=False):
     source_path: str
     output_path: str
     title: str
+    subtitle: str
     url: str
     raw_article: str
     refined_title: str
     refined_article: str
+    subtitle_ko: str
     paragraphs_en: list[str]
     summary_en: list[str]
+    discussion_topics: list[str]
     c1_vocab: list[dict[str, str]]
     atypical_terms: list[dict[str, str]]
     title_ko: str
@@ -35,7 +38,7 @@ class ArticleState(TypedDict, total=False):
 @dataclass(slots=True)
 class PipelineConfig:
     backend: str = "gemma4"
-    model: str = "mlx-community/gemma-4-26b-a4b-it-4bit"
+    model: str = "google/gemma-4-E4B-it"
     image_model: str = "gemini-3.1-flash-image-preview"
     image_size: str = "1536x1024"
     max_workers: int = 4
@@ -95,6 +98,7 @@ class ArticleInput:
     title: str
     url: str
     raw_article: str
+    subtitle: str = ""
 
 
 class OutputValidationError(ValueError):
@@ -107,6 +111,7 @@ class StrictModel(BaseModel):
 
 class InputArticlePayload(StrictModel):
     title: str = Field(min_length=1)
+    subtitle: str = ""
     url: str = Field(min_length=1)
     raw_article: str = Field(min_length=1)
 
@@ -123,19 +128,6 @@ class RefinedArticleOutput(StrictModel):
     refined_article: str = Field(min_length=1)
 
 
-class ResplitParagraphsOutput(StrictModel):
-    paragraphs_en: list[str] = Field(min_length=3, max_length=6)
-
-    @field_validator("paragraphs_en")
-    @classmethod
-    def validate_paragraphs(cls, value: list[str]) -> list[str]:
-        if not 3 <= len(value) <= 6:
-            raise ValueError(f"paragraph count must be between 3 and 6, got {len(value)}")
-        if any(not item.strip() for item in value):
-            raise ValueError("paragraphs_en must not contain empty paragraphs")
-        return value
-
-
 class SummaryOutput(StrictModel):
     summary_en: list[str] = Field(min_length=3, max_length=3)
 
@@ -147,6 +139,52 @@ class SummaryOutput(StrictModel):
         if any(not item.strip() for item in value):
             raise ValueError("summary_en must not contain empty bullets")
         return value
+
+
+class DiscussionTopicsOutput(StrictModel):
+    discussion_topics: list[str] = Field(min_length=8, max_length=8)
+
+    @field_validator("discussion_topics")
+    @classmethod
+    def validate_prompts(cls, value: list[str]) -> list[str]:
+        if len(value) != 8:
+            raise ValueError(f"discussion_topics must contain exactly 8 prompts, got {len(value)}")
+        cleaned = [item.strip() for item in value]
+        if any(not item for item in cleaned):
+            raise ValueError("discussion_topics must not contain empty prompts")
+        if any(not item.endswith("?") for item in cleaned):
+            raise ValueError("each discussion topic must be written as a question ending with '?'")
+        if any(any("\uac00" <= char <= "\ud7a3" for char in item) for item in cleaned):
+            raise ValueError("discussion_topics must be written in English, not Korean")
+        if not any(
+            any(keyword in item.lower() for keyword in ("korea", "korean", "south korea", "seoul"))
+            for item in cleaned
+        ):
+            raise ValueError("discussion_topics must include at least one Korea-localized prompt")
+        if not any(
+            any(
+                keyword in item.lower()
+                for keyword in (
+                    "counterargument",
+                    "opposing",
+                    "opposite",
+                    "disagree",
+                    "critics",
+                    "downside",
+                    "criticism",
+                )
+            )
+            for item in cleaned
+        ):
+            raise ValueError("discussion_topics must include at least one counterargument or opposing-view prompt")
+        if not any(
+            any(
+                keyword in item.lower() for keyword in ("policy", "government", "regulate", "should", "action")
+            )
+            for item in cleaned
+        ):
+            raise ValueError("discussion_topics must include at least one action or policy prompt")
+        return cleaned
 
 
 class C1VocabItem(StrictModel):
@@ -172,6 +210,7 @@ class AtypicalTermsOutput(StrictModel):
 
 class TranslationStageOutput(StrictModel):
     title_ko: str = Field(min_length=1)
+    subtitle_ko: str = ""
     paragraphs_ko: list[str] = Field(min_length=1)
     summary_ko: list[str] = Field(min_length=1)
     translation_meta: dict[str, Any]

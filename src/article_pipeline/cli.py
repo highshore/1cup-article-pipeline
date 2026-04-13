@@ -31,7 +31,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--input-path", type=Path, default=INPUT_DIR)
     parser.add_argument("--output-dir", type=Path, default=OUTPUT_DIR)
     parser.add_argument("--backend", default="gemma4", choices=["gemma4", "openai"])
-    parser.add_argument("--model", default="mlx-community/gemma-4-26b-a4b-it-4bit")
+    parser.add_argument("--model", default="google/gemma-4-E4B-it")
     parser.add_argument("--image-model", default="gemini-3.1-flash-image-preview")
     parser.add_argument("--image-size", default="1536x1024")
     parser.add_argument("--max-workers", type=int, default=4)

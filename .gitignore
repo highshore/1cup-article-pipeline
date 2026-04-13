@@ -24,6 +24,8 @@ build/
 output/
 logs/
 artifacts/
+data/
+input/crawled/
 
 # macOS
 .DS_Store
@@ -35,3 +37,11 @@ artifacts/
 .vscode/
 *.swp
 *.swo
+
+# Node / Next.js
+node_modules/
+.next/
+*.tsbuildinfo
+
+# Bundled browser extension assets
+extensions/
