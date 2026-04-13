@@ -10,6 +10,7 @@ export const PIPELINE_STAGES = [
   "extract_c1_vocab",
   "extract_atypical_terms",
   "translate_to_korean",
+  "polish_korean_translation",
   "build_image_prompt",
   "generate_image",
 ] as const;

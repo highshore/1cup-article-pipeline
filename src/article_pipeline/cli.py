@@ -32,6 +32,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output-dir", type=Path, default=OUTPUT_DIR)
     parser.add_argument("--backend", default="gemma4", choices=["gemma4", "openai"])
     parser.add_argument("--model", default="google/gemma-4-E4B-it")
+    parser.add_argument("--korean-post-edit-model", default="google/gemma-4-E4B-it")
     parser.add_argument("--image-model", default="gemini-3.1-flash-image-preview")
     parser.add_argument("--image-size", default="1536x1024")
     parser.add_argument("--max-workers", type=int, default=4)
@@ -54,6 +55,7 @@ def build_pipeline_config(args: argparse.Namespace) -> PipelineConfig:
     return PipelineConfig(
         backend=args.backend,
         model=args.model,
+        korean_post_edit_model=args.korean_post_edit_model,
         image_model=args.image_model,
         image_size=args.image_size,
         max_workers=max(1, args.max_workers),

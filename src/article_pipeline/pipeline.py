@@ -25,10 +25,13 @@ from openai import (
 )
 from pydantic import ValidationError
 
+from local_gemma4.errors import ConfigurationError as Gemma4ConfigurationError
+from local_gemma4.errors import ModelAccessError as Gemma4ModelAccessError
 from local_translategemma.errors import ConfigurationError as TranslateGemmaConfigurationError
-from local_translategemma.errors import ModelAccessError
+from local_translategemma.errors import ModelAccessError as TranslateGemmaModelAccessError
 from local_translategemma.retry import RetryExhaustedError
 
+from .gemma4_backend import Gemma4KoreanPostEditor, build_gemma4_korean_post_editor
 from .io import iso_timestamp
 from .logging_utils import PipelineProgress
 from .openai_backend import ArticleBackend
@@ -40,6 +43,7 @@ from .schemas import (
     ErrorRecord,
     GeneratedImageOutput,
     ImagePromptOutput,
+    KoreanPostEditOutput,
     OutputValidationError,
     PipelineConfig,
     RefinedArticleOutput,
@@ -126,8 +130,9 @@ class ArticlePipeline:
         "translate_to_korean",
         "build_image_prompt",
     )
+    KOREAN_POST_EDIT_STAGE = "polish_korean_translation"
     IMAGE_STAGE = "generate_image"
-    TOTAL_STAGES = len(CRITICAL_STAGES) + len(PARALLEL_STAGES) + 1
+    TOTAL_STAGES = len(CRITICAL_STAGES) + len(PARALLEL_STAGES) + 2
 
     def __init__(
         self,
@@ -141,6 +146,9 @@ class ArticlePipeline:
         self.config = config
         self.log_file = log_file
         self.critical_graph = self._build_critical_graph()
+        self.korean_post_editor: Gemma4KoreanPostEditor = build_gemma4_korean_post_editor(
+            config.korean_post_edit_model
+        )
 
     def run(
         self,
@@ -211,6 +219,17 @@ class ArticlePipeline:
             for future in futures.as_completed(future_map):
                 outcome = future.result()
                 self._apply_outcome(state, progress, outcome)
+
+            if self._has_translation_payload(state):
+                outcome = self._execute_stage(
+                    article.article_id,
+                    self.KOREAN_POST_EDIT_STAGE,
+                    lambda: self._polish_korean_translation(state),
+                )
+            else:
+                outcome = self._skip_stage(self.KOREAN_POST_EDIT_STAGE, "translation output unavailable")
+
+            self._apply_outcome(state, progress, outcome)
 
             if self.config.generate_image and state.get("image_prompt"):
                 outcome = self._execute_stage(
@@ -406,8 +425,37 @@ class ArticlePipeline:
         return graph_state.get("next_step", "failed")
 
     def _skip_downstream_after_critical_failure(self, state: ArticleState, progress: PipelineProgress) -> None:
-        for stage_name in [*self.PARALLEL_STAGES, self.IMAGE_STAGE]:
+        for stage_name in [*self.PARALLEL_STAGES, self.KOREAN_POST_EDIT_STAGE, self.IMAGE_STAGE]:
             self._apply_outcome(state, progress, self._skip_stage(stage_name, "upstream critical stage failed"))
+
+    def _has_translation_payload(self, state: ArticleState) -> bool:
+        return bool(
+            state.get("title_ko")
+            and "paragraphs_ko" in state
+            and "summary_ko" in state
+            and isinstance(state.get("paragraphs_ko"), list)
+            and isinstance(state.get("summary_ko"), list)
+        )
+
+    def _polish_korean_translation(self, state: ArticleState) -> dict[str, Any]:
+        polished = self.korean_post_editor.polish_translation(
+            title_en=state["refined_title"],
+            subtitle_en=state.get("subtitle", ""),
+            paragraphs_en=state["paragraphs_en"],
+            summary_en=state["summary_en"],
+            title_ko=state["title_ko"],
+            subtitle_ko=state.get("subtitle_ko", ""),
+            paragraphs_ko=state["paragraphs_ko"],
+            summary_ko=state["summary_ko"],
+        )
+        validated = self._validate_korean_post_edit(polished, state["paragraphs_en"], state["summary_en"])
+        existing_meta = dict(state.get("translation_meta", {}))
+        post_edit_meta = {
+            **existing_meta,
+            "post_editor_model": self.config.korean_post_edit_model,
+        }
+        validated["translation_meta"] = post_edit_meta
+        return validated
 
     def _execute_stage(
         self,
@@ -530,8 +578,11 @@ class ArticlePipeline:
         elif isinstance(exc, RetryExhaustedError):
             category = "translation_retry_exhausted"
             retryable = False
-        elif isinstance(exc, (TranslateGemmaConfigurationError, ModelAccessError)):
+        elif isinstance(exc, (TranslateGemmaConfigurationError, TranslateGemmaModelAccessError)):
             category = "translation_configuration"
+            retryable = False
+        elif isinstance(exc, (Gemma4ConfigurationError, Gemma4ModelAccessError)):
+            category = "post_edit_configuration"
             retryable = False
         elif isinstance(exc, ValidationError):
             category = "output_validation"
@@ -598,6 +649,19 @@ class ArticlePipeline:
             raise OutputValidationError("Korean paragraph count does not match the English paragraph count")
         if len(validated.summary_ko) != len(summary_en):
             raise OutputValidationError("Korean summary count does not match the English summary count")
+        return validated.model_dump()
+
+    def _validate_korean_post_edit(
+        self,
+        data: dict[str, Any],
+        paragraphs_en: list[str],
+        summary_en: list[str],
+    ) -> dict[str, Any]:
+        validated = KoreanPostEditOutput.model_validate(data)
+        if len(validated.paragraphs_ko) != len(paragraphs_en):
+            raise OutputValidationError("Post-edited Korean paragraph count does not match the English paragraph count")
+        if len(validated.summary_ko) != len(summary_en):
+            raise OutputValidationError("Post-edited Korean summary count does not match the English summary count")
         return validated.model_dump()
 
     def _validate_image_prompt(self, data: dict[str, Any]) -> dict[str, Any]:

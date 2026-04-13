@@ -39,6 +39,7 @@ class ArticleState(TypedDict, total=False):
 class PipelineConfig:
     backend: str = "gemma4"
     model: str = "google/gemma-4-E4B-it"
+    korean_post_edit_model: str = "google/gemma-4-E4B-it"
     image_model: str = "gemini-3.1-flash-image-preview"
     image_size: str = "1536x1024"
     max_workers: int = 4
@@ -214,6 +215,13 @@ class TranslationStageOutput(StrictModel):
     paragraphs_ko: list[str] = Field(min_length=1)
     summary_ko: list[str] = Field(min_length=1)
     translation_meta: dict[str, Any]
+
+
+class KoreanPostEditOutput(StrictModel):
+    title_ko: str = Field(min_length=1)
+    subtitle_ko: str = ""
+    paragraphs_ko: list[str] = Field(min_length=1)
+    summary_ko: list[str] = Field(min_length=1)
 
 
 class ImagePromptOutput(StrictModel):

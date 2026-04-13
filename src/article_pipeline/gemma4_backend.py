@@ -301,6 +301,90 @@ Summary:
         return {"image_url": None, "image_path": image_path}
 
 
+class Gemma4KoreanPostEditor:
+    def __init__(self, service: Gemma4Service) -> None:
+        self._service = service
+
+    def _json_response(self, system_prompt: str, user_prompt: str) -> dict[str, Any]:
+        combined = (
+            system_prompt.strip()
+            + "\n\nRespond with ONLY the JSON object. No explanation, no markdown fences, no extra text.\n\n"
+            + user_prompt.strip()
+        )
+        with MLX_LOCK:
+            result = self._service.generate([{"role": "user", "content": combined}])
+        return _extract_json(result.text)
+
+    def polish_translation(
+        self,
+        *,
+        title_en: str,
+        subtitle_en: str,
+        paragraphs_en: list[str],
+        summary_en: list[str],
+        title_ko: str,
+        subtitle_ko: str,
+        paragraphs_ko: list[str],
+        summary_ko: list[str],
+    ) -> dict[str, Any]:
+        system = """
+You are editing Korean news-learning content for style consistency and term consistency.
+
+Goals:
+- Rewrite the Korean title into a natural Korean news headline style.
+- Korean news headlines should not end in polite or fully conjugated sentence endings such as "~합니다", "~입니다", "~하고 있습니다", "~되고 있습니다".
+- Prefer concise headline endings such as noun phrases or plain dictionary-style endings like "~확대", "~급증", "~부상", "~좁히다", "~늘리다", "~되다" when natural.
+- Apply headline style to `title_ko` only.
+- Keep `subtitle_ko`, `paragraphs_ko`, and `summary_ko` in normal natural Korean prose.
+- Do not convert paragraphs or summary bullets into headline fragments, noun-only phrases, or overly compressed note style.
+- Paragraphs should read like article/body prose.
+- Summary bullets should read like concise explanatory sentences for learners, not headlines.
+- Keep the meaning faithful to the English source.
+- Normalize named entities, product names, and key terms so the same item is written consistently across the title, subtitle, paragraphs, and summary.
+- Keep people names, company names, organization names, and product names in English when that is natural and readable in Korean news text.
+- Prefer forms like "Anthropic", "OpenAI", "Claude Code", "Ramp", "ChatGPT" instead of transliterating them into Korean when possible.
+- Preserve product names as exact English strings when possible.
+- Do not create mixed Korean-English hybrids such as "클로드 Code" or "ChatGPT 도구명".
+- If the source uses "Claude Code", keep it exactly as "Claude Code".
+- If a named entity must be rendered in Korean, choose one form and use it consistently everywhere.
+- Keep paragraph count and summary bullet count exactly unchanged.
+- Keep the Korean text natural and fluent. Do not add new facts.
+
+Return JSON:
+{
+  "title_ko": "...",
+  "subtitle_ko": "...",
+  "paragraphs_ko": ["...", "..."],
+  "summary_ko": ["...", "..."]
+}
+"""
+        user = f"""English title:
+{title_en}
+
+English subtitle:
+{subtitle_en}
+
+English paragraphs:
+{json.dumps(paragraphs_en, ensure_ascii=False)}
+
+English summary:
+{json.dumps(summary_en, ensure_ascii=False)}
+
+Current Korean title:
+{title_ko}
+
+Current Korean subtitle:
+{subtitle_ko}
+
+Current Korean paragraphs:
+{json.dumps(paragraphs_ko, ensure_ascii=False)}
+
+Current Korean summary:
+{json.dumps(summary_ko, ensure_ascii=False)}
+"""
+        return self._json_response(system, user)
+
+
 def build_gemma4_backend(
     model_id: str,
     image_model: str,
@@ -310,3 +394,10 @@ def build_gemma4_backend(
     service = Gemma4Service(config)
     logger.info("Using the Gemma 4 backend (model={}).", model_id)
     return Gemma4ArticleBackend(service=service, image_model=image_model, gemini_client=gemini_client)
+
+
+def build_gemma4_korean_post_editor(model_id: str) -> Gemma4KoreanPostEditor:
+    config = ModelConfig(model_id=model_id)
+    service = Gemma4Service(config)
+    logger.info("Using Gemma 4 Korean post-editor (model={}).", model_id)
+    return Gemma4KoreanPostEditor(service=service)
