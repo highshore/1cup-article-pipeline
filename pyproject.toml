@@ -16,12 +16,16 @@ dependencies = [
   "mlx-lm>=0.31.0",
   "mlx-vlm>=0.4.3",
   "openai==1.109.1",
+  "pillow>=11.2.1",
+  "playwright>=1.54.0",
+  "pytesseract>=0.3.13",
   "pydantic==2.12.5",
   "tqdm==4.67.1",
 ]
 
 [project.scripts]
 article-pipeline = "article_pipeline.cli:main"
+article-crawler = "crawler.cli:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/article_pipeline", "src/local_translategemma", "src/local_gemma4_a4b"]
+packages = ["src/article_pipeline", "src/crawler", "src/local_translategemma", "src/local_gemma4"]

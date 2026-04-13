@@ -3,6 +3,7 @@ from __future__ import annotations
 import concurrent.futures as futures
 import json
 import random
+import re
 import time
 import traceback
 from dataclasses import asdict
@@ -35,13 +36,13 @@ from .schemas import (
     ArticleInput,
     ArticleState,
     C1VocabOutput,
+    DiscussionTopicsOutput,
     ErrorRecord,
     GeneratedImageOutput,
     ImagePromptOutput,
     OutputValidationError,
     PipelineConfig,
     RefinedArticleOutput,
-    ResplitParagraphsOutput,
     StageOutcome,
     SummaryOutput,
     TranslationStageOutput,
@@ -50,39 +51,76 @@ from .schemas import (
 from .translator import TranslateGemmaTranslator
 
 
+TOKEN_PATTERN = re.compile(r"[A-Za-z]+")
+
+
+def _trim_final_double_consonant(stem: str) -> str:
+    if len(stem) >= 2 and stem[-1] == stem[-2] and stem[-1] not in "aeiou":
+        return stem[:-1]
+    return stem
+
+
+def _normalize_c1_token(token: str) -> str:
+    lower = token.lower()
+
+    if len(lower) <= 3:
+        return lower
+
+    if lower.endswith("ies") and len(lower) > 4:
+        return lower[:-3] + "y"
+
+    if lower.endswith("ing") and len(lower) > 5:
+        return _trim_final_double_consonant(lower[:-3])
+
+    if lower.endswith("ed") and len(lower) > 4:
+        stem = lower[:-2]
+        if stem.endswith("i") and len(stem) > 2:
+            return stem[:-1] + "y"
+        return _trim_final_double_consonant(stem)
+
+    return lower
+
+
+def _normalize_c1_term(term: str) -> str:
+    def normalize_match(match: re.Match[str]) -> str:
+        return _normalize_c1_token(match.group(0))
+
+    normalized = TOKEN_PATTERN.sub(normalize_match, term.strip())
+    normalized = re.sub(r"\s+", " ", normalized).strip()
+    phrasal_match = re.fullmatch(r"([a-z]+) (off|out|up|down|in|on|over|away|back)", normalized)
+    if phrasal_match:
+        return f"{phrasal_match.group(1)}-{phrasal_match.group(2)}"
+    return normalized
+
+
 class CriticalPathState(TypedDict, total=False):
     article_id: str
     title: str
+    subtitle: str
     url: str
     raw_article: str
     refined_title: str
     refined_article: str
     paragraphs_en: list[str]
     summary_en: list[str]
-    raw_resplit_response: dict[str, Any]
     raw_summary_response: dict[str, Any]
-    resplit_validation_feedback: str | None
     summary_validation_feedback: str | None
-    resplit_retry_count: int
     summary_retry_count: int
-    resplit_total_duration: float
     summary_total_duration: float
-    resplit_request_count: int
     summary_request_count: int
     refine_outcome: StageOutcome
-    resplit_outcome: StageOutcome
     summary_outcome: StageOutcome
     failed_stage: str | None
-    next_step: Literal["resplit_request", "summarize_request", "done", "failed"]
+    next_step: Literal["summarize_request", "done", "failed"]
 
 
 class ArticlePipeline:
     CRITICAL_STAGES = (
         "refine_article",
-        "resplit_paragraphs",
         "summarize_article",
     )
     PARALLEL_STAGES = (
+        "extract_discussion_topics",
         "extract_c1_vocab",
         "extract_atypical_terms",
         "translate_to_korean",
@@ -116,6 +154,7 @@ class ArticlePipeline:
             "source_path": str(article.source_path),
             "output_path": str(output_path),
             "title": article.title,
+            "subtitle": article.subtitle,
             "url": article.url,
             "raw_article": article.raw_article,
             "errors": [],
@@ -140,6 +179,9 @@ class ArticlePipeline:
             thread_name_prefix="article-stage",
         ) as executor:
             parallel_plan = {
+                "extract_discussion_topics": lambda: self._validate_discussion_topics(
+                    self.backend.extract_discussion_topics(state["refined_title"], state["summary_en"])
+                ),
                 "extract_c1_vocab": lambda: self._validate_c1_vocab(
                     self.backend.extract_c1_vocab(state["refined_title"], state["paragraphs_en"])
                 ),
@@ -150,6 +192,7 @@ class ArticlePipeline:
                     self.translator.translate_article(
                         article_id=article.article_id,
                         title=state["refined_title"],
+                        subtitle=state["subtitle"],
                         paragraphs=state["paragraphs_en"],
                         summary=state["summary_en"],
                     ),
@@ -188,8 +231,6 @@ class ArticlePipeline:
     def _build_critical_graph(self):
         builder = StateGraph(CriticalPathState)
         builder.add_node("refine_article", self._refine_article_node)
-        builder.add_node("resplit_request", self._resplit_request_node)
-        builder.add_node("validate_resplit", self._validate_resplit_node)
         builder.add_node("summarize_request", self._summarize_request_node)
         builder.add_node("validate_summary", self._validate_summary_node)
 
@@ -198,16 +239,6 @@ class ArticlePipeline:
             "refine_article",
             self._route_after_refine,
             {
-                "resplit_request": "resplit_request",
-                "failed": END,
-            },
-        )
-        builder.add_edge("resplit_request", "validate_resplit")
-        builder.add_conditional_edges(
-            "validate_resplit",
-            self._route_after_resplit_validation,
-            {
-                "resplit_request": "resplit_request",
                 "summarize_request": "summarize_request",
                 "failed": END,
             },
@@ -229,24 +260,21 @@ class ArticlePipeline:
             {
                 "article_id": state["article_id"],
                 "title": state["title"],
+                "subtitle": state["subtitle"],
                 "url": state["url"],
                 "raw_article": state["raw_article"],
-                "resplit_retry_count": 0,
+                "paragraphs_en": [paragraph.strip() for paragraph in state["raw_article"].split("\n\n") if paragraph.strip()],
                 "summary_retry_count": 0,
-                "resplit_total_duration": 0.0,
                 "summary_total_duration": 0.0,
-                "resplit_request_count": 0,
                 "summary_request_count": 0,
-                "resplit_validation_feedback": None,
                 "summary_validation_feedback": None,
                 "failed_stage": None,
-                "next_step": "resplit_request",
+                "next_step": "summarize_request",
             }
         )
 
         for stage_name, outcome_key in (
             ("refine_article", "refine_outcome"),
-            ("resplit_paragraphs", "resplit_outcome"),
             ("summarize_article", "summary_outcome"),
         ):
             outcome = graph_state.get(outcome_key)
@@ -284,97 +312,7 @@ class ArticlePipeline:
         return updates
 
     def _route_after_refine(self, graph_state: CriticalPathState) -> str:
-        return "failed" if graph_state.get("failed_stage") else "resplit_request"
-
-    def _resplit_request_node(self, graph_state: CriticalPathState) -> CriticalPathState:
-        outcome = self._execute_stage(
-            graph_state["article_id"],
-            "resplit_paragraphs",
-            lambda: self.backend.resplit_paragraphs(
-                graph_state["refined_article"],
-                validation_feedback=graph_state.get("resplit_validation_feedback"),
-            ),
-        )
-
-        if outcome.success:
-            return {
-                "raw_resplit_response": outcome.updates,
-                "resplit_total_duration": graph_state.get("resplit_total_duration", 0.0) + outcome.duration_seconds,
-                "resplit_request_count": graph_state.get("resplit_request_count", 0) + outcome.attempts,
-                "failed_stage": None,
-            }
-
-        failed_outcome = StageOutcome(
-            stage="resplit_paragraphs",
-            success=False,
-            updates={},
-            duration_seconds=graph_state.get("resplit_total_duration", 0.0) + outcome.duration_seconds,
-            attempts=graph_state.get("resplit_request_count", 0) + outcome.attempts,
-            error=outcome.error,
-        )
-        return {
-            "resplit_outcome": failed_outcome,
-            "failed_stage": "resplit_paragraphs",
-            "next_step": "failed",
-        }
-
-    def _validate_resplit_node(self, graph_state: CriticalPathState) -> CriticalPathState:
-        try:
-            parsed = ResplitParagraphsOutput.model_validate(graph_state["raw_resplit_response"])
-        except ValidationError as exc:
-            feedback = self._validation_feedback(exc)
-            retry_count = graph_state.get("resplit_retry_count", 0)
-            logger.warning(
-                "Validation failed for '{}:resplit_paragraphs' attempt {}: {}",
-                graph_state["article_id"],
-                retry_count + 1,
-                feedback,
-            )
-            if retry_count < self.config.max_retries:
-                return {
-                    "resplit_retry_count": retry_count + 1,
-                    "resplit_validation_feedback": feedback,
-                    "next_step": "resplit_request",
-                    "failed_stage": None,
-                }
-
-            failure = StageOutcome(
-                stage="resplit_paragraphs",
-                success=False,
-                updates={},
-                duration_seconds=graph_state.get("resplit_total_duration", 0.0),
-                attempts=graph_state.get("resplit_request_count", 0),
-                error=ErrorRecord(
-                    stage="resplit_paragraphs",
-                    category="output_validation",
-                    message=feedback,
-                    retryable=False,
-                    attempt=retry_count + 1,
-                ),
-            )
-            return {
-                "resplit_outcome": failure,
-                "failed_stage": "resplit_paragraphs",
-                "next_step": "failed",
-            }
-
-        success = StageOutcome(
-            stage="resplit_paragraphs",
-            success=True,
-            updates={"paragraphs_en": parsed.paragraphs_en},
-            duration_seconds=graph_state.get("resplit_total_duration", 0.0),
-            attempts=graph_state.get("resplit_request_count", 0),
-        )
-        return {
-            "paragraphs_en": parsed.paragraphs_en,
-            "resplit_outcome": success,
-            "resplit_validation_feedback": None,
-            "next_step": "summarize_request",
-            "failed_stage": None,
-        }
-
-    def _route_after_resplit_validation(self, graph_state: CriticalPathState) -> str:
-        return graph_state.get("next_step", "failed")
+        return "failed" if graph_state.get("failed_stage") else "summarize_request"
 
     def _summarize_request_node(self, graph_state: CriticalPathState) -> CriticalPathState:
         outcome = self._execute_stage(
@@ -634,7 +572,16 @@ class ArticlePipeline:
 
     def _validate_c1_vocab(self, data: dict[str, Any]) -> dict[str, Any]:
         validated = C1VocabOutput.model_validate(data)
-        return {"c1_vocab": [item.model_dump() for item in validated.c1_vocab]}
+        normalized_items = []
+        for item in validated.c1_vocab:
+            payload = item.model_dump()
+            payload["term"] = _normalize_c1_term(payload["term"])
+            normalized_items.append(payload)
+        return {"c1_vocab": normalized_items}
+
+    def _validate_discussion_topics(self, data: dict[str, Any]) -> dict[str, Any]:
+        validated = DiscussionTopicsOutput.model_validate(data)
+        return {"discussion_topics": validated.discussion_topics}
 
     def _validate_atypical_terms(self, data: dict[str, Any]) -> dict[str, Any]:
         validated = AtypicalTermsOutput.model_validate(data)

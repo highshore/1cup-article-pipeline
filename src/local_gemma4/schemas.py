@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-DEFAULT_MODEL_ID = "mlx-community/gemma-4-26b-a4b-it-4bit"
+DEFAULT_MODEL_ID = "google/gemma-4-E4B-it"
 
 
 @dataclass(slots=True)

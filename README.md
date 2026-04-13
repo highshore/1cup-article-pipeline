@@ -2,6 +2,10 @@
 
 Reads English news articles from `input/`, enriches them through a multi-stage LangGraph pipeline, and writes structured JSON output to `output/`.
 
+The repo also includes a browser-based crawler for Financial Times and The Wall Street Journal in `src/crawler/`. It opens Playwright Chromium with the bundled `extensions/bypass-chrome` extension, collects top stories from key sections, skips URLs already saved in a local SQLite store, and writes one JSON file per article into `input/crawled/`.
+The crawler now also saves cropped media assets under `input/crawled/_media/` and inlines their metadata directly inside each article JSON.
+For manual review, a separate Next.js workspace lives in `apps/review-dashboard`, reading the same SQLite database and storing approve/defer/reject decisions in a dedicated review table.
+
 **What it produces per article:**
 - Refined English text, re-split into paragraphs
 - 3-bullet summary
@@ -47,7 +51,7 @@ hf auth login
 
 Then accept the license terms on Hugging Face for both models:
 
-- [`mlx-community/gemma-4-26b-a4b-it-4bit`](https://huggingface.co/mlx-community/gemma-4-26b-a4b-it-4bit) — text pipeline (~15.6 GB, downloads on first run)
+- [`google/gemma-4-E4B-it`](https://huggingface.co/google/gemma-4-E4B-it) — default text pipeline model (smaller than 26B A4B, downloads on first run)
 - [`mlx-community/translategemma-12b-it-4bit`](https://huggingface.co/mlx-community/translategemma-12b-it-4bit) — Korean translation (~6 GB, downloads on first run)
 
 ---
@@ -68,6 +72,41 @@ The filename (without extension) becomes the article ID used for output files.
 ---
 
 ## Running
+
+### Crawl FT / WSJ inputs first
+
+```bash
+uv run article-crawler --source all --limit-per-section 5
+```
+
+### Review crawled articles in the dashboard
+
+```bash
+cd apps/review-dashboard
+npm install
+npm run dev
+```
+
+Then open `http://localhost:3000`.
+
+Useful options:
+
+- `--source ft` or `--source wsj`
+- `--url https://...` to extract one specific article directly
+- `--migrate-legacy-output` to convert older `.txt` + `.media.json` crawler output into the single-JSON format
+- `--section frontpage --section tech`
+- `--headless` if your local Chromium build supports extensions in headless mode
+- `--chrome-executable-path /path/to/chromium-binary` only if you want to override Playwright's default Chromium binary
+- `--profile-dir artifacts/crawler/profiles` to control where temporary per-run Chromium profiles are created
+
+Important: Playwright can no longer side-load extensions into branded Google Chrome, so the crawler intentionally uses Chromium and will fail fast if the extension service worker does not load.
+The launcher also strips Playwright's default `--disable-extensions` flag, otherwise Chromium will start without the unpacked bypass extension.
+The crawler uses a fresh temporary Chromium profile for each run to avoid crashes from stale persistent profile state.
+
+The crawler stores dedupe state in `data/crawler.sqlite3` and emits new article JSON files under `input/crawled/`.
+Each article JSON includes `crawl_timestamp`, `title`, `subtitle`, `url`, and an ordered `article` array that mixes paragraph blocks with full media blocks in document order.
+Media blocks include OCR-assisted chart classification fields such as `kind_source`, `chart_score`, `ocr_word_count`, `ocr_avg_confidence`, and `ocr_text_excerpt`.
+When figures or inline images are found, the cropped media assets are stored in `input/crawled/_media/<article-id>/`.
 
 ### Default run (Gemma 4 text + Gemini images)
 
@@ -114,7 +153,7 @@ uv run article-pipeline --disable-progress
 | Flag | Default | Description |
 |---|---|---|
 | `--backend` | `gemma4` | Text backend: `gemma4` (local MLX) or `openai` |
-| `--model` | `mlx-community/gemma-4-26b-a4b-it-4bit` | Text model (HF repo ID or local path) |
+| `--model` | `google/gemma-4-E4B-it` | Text model (HF repo ID or local path) |
 | `--image-model` | `gemini-3.1-flash-image-preview` | Image generation model |
 | `--image-size` | `1536x1024` | Image size (OpenAI backend only) |
 | `--input-path` | `input/` | Input `.txt` file or directory |
@@ -180,7 +219,7 @@ src/
 │   ├── io.py               # File I/O and env loading
 │   └── logging_utils.py    # loguru + tqdm integration
 │
-├── local_gemma4_a4b/       # Self-contained Gemma 4 MLX inference service
+├── local_gemma4/           # Self-contained Gemma 4 MLX inference service
 │   ├── service.py          # Model load, generate, retry
 │   ├── schemas.py          # ModelConfig, InferenceResult
 │   ├── model_locator.py    # Resolves local path / HF cache / hub

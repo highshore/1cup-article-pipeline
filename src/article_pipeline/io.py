@@ -66,6 +66,7 @@ def load_article_input(path: Path) -> ArticleInput:
         raise ValueError(f"Input file '{path}' is empty.")
 
     title_match = re.search(r"(?mi)^\s*Title:\s*(?P<title>.+?)\s*$", raw_text)
+    subtitle_match = re.search(r"(?mi)^\s*Subtitle:\s*(?P<subtitle>.+?)\s*$", raw_text)
     url_match = re.search(r"(?mi)^\s*URL:\s*(?P<url>\S+)\s*$", raw_text)
     article_text_match = re.search(r"(?mis)^\s*Article Text:\s*\n(?P<body>.+)$", raw_text)
 
@@ -77,6 +78,7 @@ def load_article_input(path: Path) -> ArticleInput:
     payload = InputArticlePayload.model_validate(
         {
             "title": title_match.group("title"),
+            "subtitle": subtitle_match.group("subtitle") if subtitle_match else "",
             "url": url_match.group("url"),
             "raw_article": article_text_match.group("body").strip(),
         }
@@ -86,6 +88,7 @@ def load_article_input(path: Path) -> ArticleInput:
         article_id=slugify(path.stem),
         source_path=path,
         title=payload.title,
+        subtitle=payload.subtitle,
         url=payload.url,
         raw_article=payload.raw_article,
     )
