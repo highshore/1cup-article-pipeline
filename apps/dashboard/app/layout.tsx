@@ -4,7 +4,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Article Review Dashboard",
-  description: "Review crawled FT and WSJ articles from the crawler SQLite database.",
+  description: "Review shared article rows with Supabase-backed sign-in and review state.",
 };
 
 export default function RootLayout({

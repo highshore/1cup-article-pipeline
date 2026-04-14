@@ -14,9 +14,9 @@ export function TranslatableText({ original, translated, kind }: TranslatableTex
 
   const textClassName =
     kind === "title"
-      ? "font-[family:var(--font-serif)] text-3xl leading-tight text-ink md:text-4xl"
+      ? "font-[family:var(--font-serif)] text-[1.85rem] leading-tight text-ink sm:text-[2.15rem] md:text-4xl"
       : kind === "subtitle"
-        ? "max-w-4xl text-lg leading-7 text-ink/72"
+        ? "max-w-4xl text-base leading-7 text-ink/72 md:text-lg"
         : kind === "summary"
           ? "text-[15px] leading-7 text-ink/85"
         : "text-[15px] leading-7 text-ink/85";
@@ -29,7 +29,7 @@ export function TranslatableText({ original, translated, kind }: TranslatableTex
         type="button"
       >
         <div className={textClassName}>{original}</div>
-        <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-[0.16em] text-ink/45">
+        <div className="mt-2 flex flex-wrap items-center gap-2 text-[10px] uppercase tracking-[0.14em] text-ink/45 md:text-[11px] md:tracking-[0.16em]">
           <span
             className={[
               "rounded-full border px-2 py-1",
@@ -43,7 +43,7 @@ export function TranslatableText({ original, translated, kind }: TranslatableTex
       </button>
 
       {open ? (
-        <div className="mt-3 rounded-2xl border border-slate-200/70 bg-shell/58 px-4 py-3 text-[15px] leading-7 text-ink/80">
+        <div className="mt-3 rounded-2xl border border-slate-200/70 bg-shell/58 px-3 py-3 text-[15px] leading-7 text-ink/80 md:px-4">
           {hasTranslation ? translated : `No Korean translation is stored for this ${kind}.`}
         </div>
       ) : null}

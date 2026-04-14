@@ -6,11 +6,15 @@ import { spawn } from "node:child_process";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import { requireUser } from "@/lib/auth";
 import { upsertReview, type ReviewStatus } from "@/lib/articles";
 import { createPipelineRun } from "@/lib/runs";
 import { resolveDbPath } from "@/lib/db";
+import { canRunLocalPipeline } from "@/lib/runtime";
 
 export async function updateReviewStatus(formData: FormData): Promise<void> {
+  await requireUser();
+
   const articleId = String(formData.get("articleId") ?? "").trim();
   const status = String(formData.get("status") ?? "").trim() as ReviewStatus;
   const note = String(formData.get("note") ?? "");
@@ -24,12 +28,18 @@ export async function updateReviewStatus(formData: FormData): Promise<void> {
     throw new Error("Invalid review status");
   }
 
-  upsertReview(articleId, status, note);
+  await upsertReview(articleId, status, note);
   revalidatePath("/");
   redirect(returnTo);
 }
 
 export async function launchPipelineRun(formData: FormData): Promise<void> {
+  await requireUser();
+
+  if (!canRunLocalPipeline()) {
+    throw new Error("Pipeline launch is only available from a local dashboard runtime.");
+  }
+
   const backend = String(formData.get("backend") ?? "").trim() || "gemma4";
   const inputPath = String(formData.get("inputPath") ?? "").trim();
   const outputDir = String(formData.get("outputDir") ?? "").trim();
