@@ -99,12 +99,12 @@ export function PipelineRunsClient({
   const progressPercent = totalArticles > 0 ? Math.round((completedArticles / totalArticles) * 100) : 0;
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[344px_minmax(0,1fr)]">
-      <section className="rounded-[24px] border border-slate-200/75 bg-white/80 p-4 shadow-[0_12px_30px_rgba(15,23,42,0.05)] backdrop-blur md:p-5">
+    <div className="grid gap-4 md:gap-6 xl:grid-cols-[344px_minmax(0,1fr)]">
+      <section className="rounded-[22px] border border-slate-200/75 bg-white/80 p-3 shadow-[0_12px_30px_rgba(15,23,42,0.05)] backdrop-blur sm:p-4 md:rounded-[24px] md:p-5">
         <div className="mb-4 flex items-center justify-between gap-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-ink/45">Recent runs</p>
-            <h2 className="mt-2 text-3xl font-semibold text-ink">Pipeline history</h2>
+            <h2 className="mt-2 text-2xl font-semibold text-ink sm:text-3xl">Pipeline history</h2>
           </div>
           <div className="text-right text-xs uppercase tracking-[0.18em] text-ink/45">
             <div>{isRefreshing ? "Refreshing" : "Live"}</div>
@@ -114,7 +114,7 @@ export function PipelineRunsClient({
 
         {refreshError ? <div className="mb-4 rounded-2xl border border-ember/15 bg-ember/10 px-3 py-2 text-sm text-ember">{refreshError}</div> : null}
 
-        <div className="grid max-h-[75vh] gap-3 overflow-y-auto pr-1">
+        <div className="grid gap-3 overflow-y-auto pr-1 lg:max-h-[75vh]">
           {runs.length === 0 ? (
             <div className="rounded-3xl border border-slate-200/65 bg-white/60 px-4 py-12 text-center text-sm text-ink/60">
               No pipeline runs yet.
@@ -126,7 +126,7 @@ export function PipelineRunsClient({
                 <button
                   key={run.id}
                   className={[
-                    "flex min-h-[188px] flex-col rounded-3xl border px-4 py-4 text-left transition",
+                    "flex min-h-[168px] flex-col rounded-[24px] border px-4 py-4 text-left transition sm:min-h-[188px] sm:rounded-3xl",
                     selected
                       ? "border-ember/35 bg-ember/10 shadow-[0_10px_24px_rgba(37,99,235,0.08)] ring-1 ring-ember/15"
                       : "border-slate-200/70 bg-white/62 hover:border-slate-300/80 hover:bg-white/82",
@@ -145,7 +145,7 @@ export function PipelineRunsClient({
                     </div>
                     <RunStatusBadge status={run.status} />
                   </div>
-                  <div className="mt-4 grid grid-cols-3 gap-3 text-sm text-ink/75">
+                  <div className="mt-4 grid grid-cols-3 gap-2 text-sm text-ink/75 sm:gap-3">
                     <Metric label="Done" value={`${run.completedArticles}/${run.totalArticles}`} />
                     <Metric label="OK" value={String(run.succeededArticles)} />
                     <Metric label="Failed" value={String(run.failedArticles)} />
@@ -156,7 +156,7 @@ export function PipelineRunsClient({
                       style={{ width: `${run.totalArticles > 0 ? (run.completedArticles / run.totalArticles) * 100 : 0}%` }}
                     />
                   </div>
-                  <div className="mt-auto flex items-center justify-between gap-3 pt-4 text-xs uppercase tracking-[0.16em] text-ink/45">
+                  <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-4 text-[11px] uppercase tracking-[0.14em] text-ink/45 sm:text-xs sm:tracking-[0.16em]">
                     <span>{formatTimestamp(run.requestedAt)}</span>
                     <span>{run.skipImage ? "No image" : "Full pipeline"}</span>
                   </div>
@@ -170,11 +170,11 @@ export function PipelineRunsClient({
       <section className="grid gap-4">
         {selectedRun ? (
           <>
-            <div className="rounded-[28px] border border-slate-200/75 bg-white/84 p-5 shadow-panel backdrop-blur md:p-7">
+            <div className="rounded-[24px] border border-slate-200/75 bg-white/84 p-4 shadow-panel backdrop-blur sm:p-5 md:rounded-[28px] md:p-7">
               <div className="flex flex-col gap-4 border-b border-slate-200/80 pb-6 md:flex-row md:items-end md:justify-between">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.22em] text-dusk">Pipeline monitor</p>
-                  <h1 className="mt-2 text-4xl font-semibold leading-tight text-ink md:text-5xl">
+                  <h1 className="mt-2 text-3xl font-semibold leading-tight text-ink sm:text-4xl md:text-5xl">
                     Run #{selectedRun.id}
                   </h1>
                   <p className="mt-3 max-w-3xl text-sm leading-6 text-ink/75">
@@ -189,7 +189,7 @@ export function PipelineRunsClient({
                 </div>
               </div>
 
-              <div className="mt-6 grid gap-4 md:grid-cols-4">
+              <div className="mt-6 grid gap-3 sm:grid-cols-2 md:grid-cols-4 md:gap-4">
                 <SummaryCard label="Articles" value={`${completedArticles}/${totalArticles}`} />
                 <SummaryCard label="Succeeded" value={String(selectedRun.succeededArticles)} />
                 <SummaryCard label="Failed" value={String(selectedRun.failedArticles)} />
@@ -213,14 +213,14 @@ export function PipelineRunsClient({
             </div>
 
             <div className="grid gap-4 xl:grid-cols-[minmax(0,1.1fr)_392px]">
-              <section className="rounded-[24px] border border-slate-200/70 bg-white/70 p-5 md:p-6">
+              <section className="rounded-[22px] border border-slate-200/70 bg-white/70 p-4 md:rounded-[24px] md:p-6">
                 <div className="mb-4">
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/45">Per stage</p>
-                  <h2 className="mt-2 text-3xl font-semibold text-ink">Stage summary</h2>
+                  <h2 className="mt-2 text-2xl font-semibold text-ink sm:text-3xl">Stage summary</h2>
                 </div>
-                <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-4">
+                <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-4">
                   {detail.stageSummary.map((stage) => (
-                    <div key={stage.stage} className="h-full min-h-[152px] rounded-3xl border border-slate-200/65 bg-white/62 p-4">
+                    <div key={stage.stage} className="h-full min-h-[132px] rounded-[24px] border border-slate-200/65 bg-white/62 p-4 sm:min-h-[152px] sm:rounded-3xl">
                       <div className="text-sm font-semibold text-ink">{humanizeStage(stage.stage)}</div>
                       <div className="mt-3 grid grid-cols-2 gap-2 text-xs uppercase tracking-[0.14em] text-ink/55">
                         <TinyMetric label="Queued" value={stage.queued} />
@@ -234,12 +234,12 @@ export function PipelineRunsClient({
                 </div>
               </section>
 
-              <section className="rounded-[24px] border border-slate-200/70 bg-white/70 p-5 md:p-6">
+              <section className="rounded-[22px] border border-slate-200/70 bg-white/70 p-4 md:rounded-[24px] md:p-6">
                 <div className="mb-4">
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/45">Latest logs</p>
-                  <h2 className="mt-2 text-3xl font-semibold text-ink">Log tail</h2>
+                  <h2 className="mt-2 text-2xl font-semibold text-ink sm:text-3xl">Log tail</h2>
                 </div>
-                <div className="grid max-h-[480px] gap-2 overflow-y-auto rounded-3xl bg-ink px-4 py-4 text-sm text-white/85">
+                <div className="grid max-h-[420px] gap-2 overflow-y-auto rounded-[24px] bg-ink px-3 py-3 text-sm text-white/85 sm:max-h-[480px] sm:rounded-3xl sm:px-4 sm:py-4">
                   {detail.logs.length === 0 ? (
                     <p className="text-white/60">No logs captured yet.</p>
                   ) : (
@@ -260,10 +260,10 @@ export function PipelineRunsClient({
               </section>
             </div>
 
-            <section className="rounded-[24px] border border-slate-200/70 bg-white/70 p-5 md:p-6">
+            <section className="rounded-[22px] border border-slate-200/70 bg-white/70 p-4 md:rounded-[24px] md:p-6">
               <div className="mb-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/45">Per article</p>
-                  <h2 className="mt-2 text-3xl font-semibold text-ink">Article progress</h2>
+                  <h2 className="mt-2 text-2xl font-semibold text-ink sm:text-3xl">Article progress</h2>
               </div>
               <div className="overflow-x-auto rounded-3xl border border-slate-200/65 bg-white/56">
                 <div className="grid min-w-[760px] grid-cols-[minmax(0,1.8fr)_120px_180px_140px] bg-shell/70 px-4 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-ink/55">
@@ -298,10 +298,10 @@ export function PipelineRunsClient({
             </section>
           </>
         ) : (
-              <div className="grid min-h-[60vh] place-items-center rounded-[24px] border border-slate-200/65 bg-white/60 p-8 text-center">
+              <div className="grid min-h-[50vh] place-items-center rounded-[24px] border border-slate-200/65 bg-white/60 p-6 text-center sm:min-h-[60vh] sm:p-8">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.28em] text-ink/45">No runs yet</p>
-                  <h2 className="mt-3 text-4xl font-semibold text-ink">Launch a pipeline run to monitor it here.</h2>
+                  <h2 className="mt-3 text-3xl font-semibold text-ink sm:text-4xl">Launch a pipeline run to monitor it here.</h2>
                 </div>
               </div>
         )}
@@ -330,7 +330,7 @@ function TinyMetric({ label, value }: { label: string; value: number }) {
 
 function SummaryCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="min-h-[112px] rounded-3xl border border-slate-200/65 bg-white/60 p-4">
+    <div className="min-h-[96px] rounded-[24px] border border-slate-200/65 bg-white/60 p-4 sm:min-h-[112px] sm:rounded-3xl">
       <div className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/45">{label}</div>
       <div className="mt-2 text-2xl font-semibold text-ink">{value}</div>
     </div>

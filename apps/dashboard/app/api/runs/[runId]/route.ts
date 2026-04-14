@@ -4,6 +4,7 @@ import {
   listPipelineRunArticles,
   listPipelineRunLogs,
 } from "@/lib/runs";
+import { canRunLocalPipeline } from "@/lib/runtime";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +15,10 @@ type RouteContext = {
 };
 
 export async function GET(_: Request, context: RouteContext): Promise<Response> {
+  if (!canRunLocalPipeline()) {
+    return Response.json({ error: "Pipeline monitoring is unavailable in hosted mode." }, { status: 503 });
+  }
+
   const { runId: rawRunId } = await context.params;
   const runId = Number(rawRunId);
 

@@ -1,9 +1,11 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { getDb } from "@/lib/db";
+import { createClient } from "@/lib/supabase/server";
 
 const REPO_ROOT = path.resolve(process.cwd(), "..", "..");
+const ARTICLE_QUERY_LIMIT = 1200;
+const ARTICLE_PAGE_LIMIT = 300;
 
 export type ReviewStatus = "pending" | "approved" | "deferred" | "rejected";
 
@@ -108,117 +110,127 @@ type ArticleRow = {
   article_text: string;
   input_file_path: string;
   crawled_at: string;
+  document_json: string | Record<string, unknown> | null;
+};
+
+type ReviewRow = {
+  article_id: string;
   status: ReviewStatus | null;
   note: string | null;
   updated_at: string | null;
-  document_json: string;
 };
 
-export function listArticles(filter: ReviewFilter): ArticleRecord[] {
-  const db = getDb();
-  const clauses = ["1 = 1"];
-  const params: Array<string> = [];
-
-  if (filter.status !== "all") {
-    clauses.push("COALESCE(ar.status, 'pending') = ?");
-    params.push(filter.status);
-  }
+export async function listArticles(filter: ReviewFilter): Promise<ArticleRecord[]> {
+  const supabase = await createClient();
+  let query = supabase
+    .from("crawled_articles")
+    .select("article_id, source, section, title, subtitle, phase, url, article_text, input_file_path, crawled_at, document_json")
+    .order("crawled_at", { ascending: false })
+    .order("url", { ascending: false })
+    .limit(ARTICLE_QUERY_LIMIT);
 
   if (filter.source !== "all") {
-    clauses.push("ca.source = ?");
-    params.push(filter.source);
+    query = query.eq("source", filter.source);
   }
 
-  if (filter.query) {
-    clauses.push("(ca.title LIKE ? OR ca.url LIKE ? OR ca.article_text LIKE ?)");
-    const q = `%${filter.query}%`;
-    params.push(q, q, q);
+  const { data, error } = await query;
+  if (error) {
+    if (isMissingRelationError(error.message)) {
+      return [];
+    }
+    throw new Error(`Failed to load articles from Supabase: ${error.message}`);
   }
 
-  const rows = db
-    .prepare(
-      `
-      SELECT
-        ca.article_id,
-        ca.source,
-        ca.section,
-        ca.title,
-        ca.subtitle,
-        ca.phase,
-        ca.url,
-        ca.article_text,
-        ca.input_file_path,
-        ca.crawled_at,
-        ar.status,
-        ar.note,
-        ar.updated_at,
-        ca.document_json
-      FROM crawled_articles AS ca
-      LEFT JOIN article_reviews AS ar
-        ON ar.article_id = ca.article_id
-      WHERE ${clauses.join(" AND ")}
-      ORDER BY ca.crawled_at DESC, ca.url DESC
-      LIMIT 300
-      `,
-    )
-    .all(...params) as ArticleRow[];
+  const rows = (data ?? []) as ArticleRow[];
+  const reviews = await getReviewMap(rows.map((row) => row.article_id));
 
-  return rows.map(toArticleRecord);
+  return rows
+    .map((row) => toArticleRecord(row, reviews.get(row.article_id)))
+    .filter((record) => matchesStatusFilter(record, filter.status))
+    .filter((record) => matchesQueryFilter(record, filter.query))
+    .slice(0, ARTICLE_PAGE_LIMIT);
 }
 
-export function getArticle(articleId: string): ArticleRecord | null {
-  const db = getDb();
-  const row = db
-    .prepare(
-      `
-      SELECT
-        ca.article_id,
-        ca.source,
-        ca.section,
-        ca.title,
-        ca.subtitle,
-        ca.phase,
-        ca.url,
-        ca.article_text,
-        ca.input_file_path,
-        ca.crawled_at,
-        ar.status,
-        ar.note,
-        ar.updated_at,
-        ca.document_json
-      FROM crawled_articles AS ca
-      LEFT JOIN article_reviews AS ar
-        ON ar.article_id = ca.article_id
-      WHERE ca.article_id = ?
-      LIMIT 1
-      `,
-    )
-    .get(articleId) as ArticleRow | undefined;
+export async function getArticle(articleId: string): Promise<ArticleRecord | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("crawled_articles")
+    .select("article_id, source, section, title, subtitle, phase, url, article_text, input_file_path, crawled_at, document_json")
+    .eq("article_id", articleId)
+    .limit(1)
+    .maybeSingle();
 
-  return row ? toArticleRecord(row) : null;
+  if (error) {
+    if (isMissingRelationError(error.message)) {
+      return null;
+    }
+    throw new Error(`Failed to load article ${articleId} from Supabase: ${error.message}`);
+  }
+
+  if (!data) {
+    return null;
+  }
+
+  const reviews = await getReviewMap([articleId]);
+  return toArticleRecord(data as ArticleRow, reviews.get(articleId));
 }
 
-export function getSources(): string[] {
-  const db = getDb();
-  const rows = db.prepare("SELECT DISTINCT source FROM crawled_articles ORDER BY source").all() as Array<{ source: string }>;
-  return rows.map((row) => row.source);
+export async function getSources(): Promise<string[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("crawled_articles").select("source").order("source", { ascending: true }).limit(ARTICLE_QUERY_LIMIT);
+
+  if (error) {
+    if (isMissingRelationError(error.message)) {
+      return [];
+    }
+    throw new Error(`Failed to load sources from Supabase: ${error.message}`);
+  }
+
+  return Array.from(new Set((data ?? []).map((row) => String(row.source ?? "").trim()).filter(Boolean)));
 }
 
-export function upsertReview(articleId: string, status: ReviewStatus, note: string): void {
-  const db = getDb();
-  db.prepare(
-    `
-    INSERT INTO article_reviews (article_id, status, note, updated_at)
-    VALUES (?, ?, ?, datetime('now'))
-    ON CONFLICT(article_id) DO UPDATE SET
-      status = excluded.status,
-      note = excluded.note,
-      updated_at = excluded.updated_at
-    `,
-  ).run(articleId, status, note.trim());
+export async function upsertReview(articleId: string, status: ReviewStatus, note: string): Promise<void> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("article_reviews").upsert(
+    {
+      article_id: articleId,
+      status,
+      note: note.trim(),
+      updated_at: new Date().toISOString(),
+    },
+    {
+      onConflict: "article_id",
+    },
+  );
+
+  if (error) {
+    throw new Error(`Failed to save review for ${articleId}: ${error.message}`);
+  }
 }
 
-function toArticleRecord(row: ArticleRow): ArticleRecord {
+async function getReviewMap(articleIds: string[]): Promise<Map<string, ReviewRow>> {
+  const uniqueIds = Array.from(new Set(articleIds.filter(Boolean)));
+  if (uniqueIds.length === 0) {
+    return new Map();
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("article_reviews")
+    .select("article_id, status, note, updated_at")
+    .in("article_id", uniqueIds);
+
+  if (error) {
+    if (isMissingRelationError(error.message)) {
+      return new Map();
+    }
+    throw new Error(`Failed to load article reviews from Supabase: ${error.message}`);
+  }
+
+  return new Map((data ?? []).map((row) => [row.article_id, row as ReviewRow]));
+}
+
+function toArticleRecord(row: ArticleRow, review?: ReviewRow | null): ArticleRecord {
   const payload = parseDocumentJson(row.document_json);
   const content = buildArticleContent(row, payload);
   const media = content.filter(isMediaBlock).map(toMediaEntry);
@@ -234,9 +246,9 @@ function toArticleRecord(row: ArticleRow): ArticleRecord {
     articleText: row.article_text,
     inputFilePath: row.input_file_path,
     crawledAt: row.crawled_at,
-    status: row.status ?? "pending",
-    note: row.note ?? "",
-    updatedAt: row.updated_at ?? null,
+    status: review?.status ?? "pending",
+    note: review?.note ?? "",
+    updatedAt: review?.updated_at ?? null,
     media,
     content,
     processed: {
@@ -253,6 +265,27 @@ function toArticleRecord(row: ArticleRow): ArticleRecord {
     },
     excerpt: row.article_text.split(/\n\s*\n/).filter(Boolean).slice(0, 2).join("\n\n"),
   };
+}
+
+function matchesStatusFilter(record: ArticleRecord, status: ReviewStatus | "all"): boolean {
+  return status === "all" ? true : record.status === status;
+}
+
+function matchesQueryFilter(record: ArticleRecord, query: string): boolean {
+  const normalizedQuery = query.trim().toLowerCase();
+  if (!normalizedQuery) {
+    return true;
+  }
+
+  return [record.title, record.url, record.articleText].some((value) => value.toLowerCase().includes(normalizedQuery));
+}
+
+function isMissingRelationError(message: string): boolean {
+  const normalized = message.toLowerCase();
+  return (
+    normalized.includes("could not find the table") ||
+    normalized.includes("relation") && normalized.includes("does not exist")
+  );
 }
 
 function buildArticleContent(row: ArticleRow, payload: Record<string, unknown> | null): ArticleContentBlock[] {
@@ -280,7 +313,15 @@ function buildArticleContent(row: ArticleRow, payload: Record<string, unknown> |
     }));
 }
 
-function parseDocumentJson(documentJson: string): Record<string, unknown> | null {
+function parseDocumentJson(documentJson: string | Record<string, unknown> | null): Record<string, unknown> | null {
+  if (!documentJson) {
+    return null;
+  }
+
+  if (typeof documentJson === "object") {
+    return documentJson;
+  }
+
   try {
     return JSON.parse(documentJson) as Record<string, unknown>;
   } catch {

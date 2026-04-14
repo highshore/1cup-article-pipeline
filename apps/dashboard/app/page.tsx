@@ -4,6 +4,7 @@ import { NewspaperIcon } from "@/components/icons";
 import { Panel } from "@/components/panel";
 import { TranslatableText } from "@/components/translatable-text";
 import { getArticle, getSources, listArticles, type ArticleContentBlock, type ReviewFilter, type ReviewStatus } from "@/lib/articles";
+import { getDashboardSchemaStatus } from "@/lib/schema-status";
 
 type PageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
@@ -32,10 +33,9 @@ function normalizeFilter(searchParams?: Record<string, string | string[] | undef
 export default async function Page({ searchParams }: PageProps) {
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const filter = normalizeFilter(resolvedSearchParams);
-  const sources = getSources();
-  const articles = listArticles(filter);
+  const [schemaStatus, sources, articles] = await Promise.all([getDashboardSchemaStatus(), getSources(), listArticles(filter)]);
   const requestedArticleId = getFirst(resolvedSearchParams?.articleId);
-  const selectedArticle = (requestedArticleId && getArticle(requestedArticleId)) || articles[0] || null;
+  const selectedArticle = (requestedArticleId && (await getArticle(requestedArticleId))) || articles[0] || null;
   const returnTo = buildReturnTo({
     articleId: selectedArticle?.articleId,
     source: filter.source,
@@ -44,28 +44,28 @@ export default async function Page({ searchParams }: PageProps) {
   });
 
   return (
-    <main className="mx-auto min-h-screen max-w-[1520px] px-4 py-6 md:px-6 lg:px-8 lg:py-8">
+    <main className="mx-auto min-h-screen max-w-[1520px] px-3 py-4 sm:px-4 sm:py-6 md:px-6 lg:px-8 lg:py-8">
       <div className="mb-5">
         <AppNav />
       </div>
 
-      <div className="mb-8 grid gap-5 lg:grid-cols-[minmax(0,1fr)_280px] lg:items-end">
+      <div className="mb-6 grid gap-4 sm:mb-8 sm:gap-5 lg:grid-cols-[minmax(0,1fr)_280px] lg:items-end">
         <div className="max-w-3xl">
           <div className="inline-flex items-center gap-2 rounded-full border border-slate-200/70 bg-white/78 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-dusk">
             <NewspaperIcon className="h-4 w-4" />
             Crawler Review Desk
           </div>
-          <h1 className="mt-3 text-4xl font-semibold leading-tight text-ink md:text-5xl">
+          <h1 className="mt-3 text-[2rem] font-semibold leading-tight text-ink sm:text-[2.4rem] md:text-5xl">
             Review crawled articles before they move downstream.
           </h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-ink/75 md:text-base">
-            This dashboard reads directly from the crawler SQLite database, shows the original article text and media
-            sidecars, and writes review decisions into a separate table.
+            This dashboard reads shared article rows from Supabase, shows the original article text and media
+            sidecars, and writes review decisions back into the shared database.
           </p>
         </div>
-        <div className="rounded-[24px] border border-slate-200/75 bg-white/80 px-5 py-4 shadow-[0_12px_30px_rgba(15,23,42,0.05)] backdrop-blur lg:justify-self-end">
+        <div className="w-full rounded-[24px] border border-slate-200/75 bg-white/80 px-4 py-4 shadow-[0_12px_30px_rgba(15,23,42,0.05)] backdrop-blur sm:px-5 lg:w-auto lg:justify-self-end">
           <div className="text-xs uppercase tracking-[0.22em] text-ink/55">Current dataset</div>
-          <div className="mt-3 grid grid-cols-2 gap-6 text-sm text-ink/80">
+          <div className="mt-3 grid grid-cols-2 gap-4 text-sm text-ink/80 sm:gap-6">
             <div>
               <div className="text-2xl font-semibold text-ink">{articles.length}</div>
               <div>matching rows</div>
@@ -78,8 +78,8 @@ export default async function Page({ searchParams }: PageProps) {
         </div>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[396px_minmax(0,1fr)]">
-        <section className="rounded-[24px] border border-slate-200/75 bg-white/78 p-4 shadow-[0_12px_30px_rgba(15,23,42,0.05)] backdrop-blur md:p-5">
+      <div className="grid gap-4 md:gap-6 xl:grid-cols-[396px_minmax(0,1fr)]">
+        <section className="rounded-[22px] border border-slate-200/75 bg-white/78 p-3 shadow-[0_12px_30px_rgba(15,23,42,0.05)] backdrop-blur sm:p-4 md:rounded-[24px] md:p-5">
           <form className="grid gap-3 rounded-[20px] border border-slate-200/65 bg-white/60 p-4" method="get">
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
               <label className="grid gap-1 text-sm text-ink/80">
@@ -130,7 +130,7 @@ export default async function Page({ searchParams }: PageProps) {
             </button>
           </form>
 
-          <div className="mt-4 grid max-h-[72vh] gap-3 overflow-y-auto pr-1">
+          <div className="mt-4 grid gap-3 overflow-y-auto pr-1 lg:max-h-[72vh]">
             {articles.length === 0 ? (
               <div className="rounded-3xl border border-slate-200/65 bg-white/60 px-4 py-12 text-center text-sm text-ink/60">
                 No rows matched the current filters.
@@ -148,7 +148,7 @@ export default async function Page({ searchParams }: PageProps) {
                   <a
                     key={article.articleId}
                     className={[
-                      "flex min-h-[208px] flex-col rounded-3xl border px-4 py-4 transition",
+                      "flex min-h-[164px] flex-col rounded-[24px] border px-4 py-4 transition sm:min-h-[208px] sm:rounded-3xl",
                       selectedArticle?.articleId === article.articleId
                         ? "border-ember/35 bg-ember/10 shadow-[0_10px_24px_rgba(37,99,235,0.08)] ring-1 ring-ember/15"
                         : "border-slate-200/70 bg-white/62 hover:border-slate-300/80 hover:bg-white/82",
@@ -160,14 +160,14 @@ export default async function Page({ searchParams }: PageProps) {
                         <p className="text-xs font-semibold uppercase tracking-[0.22em] text-ink/50">
                           {article.source.toUpperCase()} / {article.section}
                         </p>
-                        <h2 className="mt-2 line-clamp-3 font-[family:var(--font-serif)] text-[1.55rem] leading-snug text-ink">
+                        <h2 className="mt-2 line-clamp-3 font-[family:var(--font-serif)] text-[1.22rem] leading-snug text-ink sm:text-[1.4rem] xl:text-[1.55rem]">
                           {article.title}
                         </h2>
                       </div>
                       <StatusBadge status={article.status} />
                     </div>
                     <p className="mt-3 line-clamp-4 flex-1 text-sm leading-6 text-ink/70">{article.articleText}</p>
-                    <div className="mt-4 flex items-center justify-between gap-3 text-xs uppercase tracking-[0.16em] text-ink/45">
+                    <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-[11px] uppercase tracking-[0.14em] text-ink/45 sm:text-xs sm:tracking-[0.16em]">
                       <span>{formatTimestamp(article.crawledAt)}</span>
                       <span>{article.media.length} media</span>
                     </div>
@@ -178,7 +178,7 @@ export default async function Page({ searchParams }: PageProps) {
           </div>
         </section>
 
-        <section className="rounded-[28px] border border-slate-200/75 bg-white/84 p-5 shadow-panel backdrop-blur md:p-7">
+        <section className="rounded-[24px] border border-slate-200/75 bg-white/84 p-4 shadow-panel backdrop-blur sm:p-5 md:rounded-[28px] md:p-7">
           {selectedArticle ? (
             <div className="grid gap-6">
               <div className="flex flex-col gap-4 border-b border-black/10 pb-6">
@@ -209,7 +209,7 @@ export default async function Page({ searchParams }: PageProps) {
                 </div>
               </div>
 
-              <form action={updateReviewStatus} className="grid gap-4 rounded-[28px] border border-slate-200/65 bg-shell/58 p-4 md:p-5">
+              <form action={updateReviewStatus} className="grid gap-4 rounded-[24px] border border-slate-200/65 bg-shell/58 p-4 md:rounded-[28px] md:p-5">
                 <input name="articleId" type="hidden" value={selectedArticle.articleId} />
                 <input name="returnTo" type="hidden" value={returnTo} />
                 <label className="grid gap-2 text-sm text-ink/80">
@@ -221,7 +221,7 @@ export default async function Page({ searchParams }: PageProps) {
                     placeholder="Optional note for why this was approved, deferred, or rejected."
                   />
                 </label>
-                <div className="flex flex-wrap gap-3">
+                <div className="grid gap-3 sm:flex sm:flex-wrap">
                   <ActionButton label="Approve" status="approved" tone="approve" />
                   <ActionButton label="Defer" status="deferred" tone="defer" />
                   <ActionButton label="Reject" status="rejected" tone="reject" />
@@ -293,13 +293,16 @@ export default async function Page({ searchParams }: PageProps) {
                     </div>
                   </Panel>
 
-                  {selectedArticle.processed.imagePath ? (
+                  {selectedArticle.processed.imagePath || selectedArticle.processed.imageUrl ? (
                     <Panel title="Generated Image" subtitle="Pipeline output">
                       <div className="mx-auto max-w-3xl">
                         <img
                           alt={selectedArticle.processed.titleKo || selectedArticle.title}
                           className="block h-auto w-full rounded-[24px] bg-shell object-contain"
-                          src={`/api/media?path=${encodeURIComponent(selectedArticle.processed.imagePath)}`}
+                          src={
+                            selectedArticle.processed.imageUrl ||
+                            `/api/media?path=${encodeURIComponent(selectedArticle.processed.imagePath ?? "")}`
+                          }
                         />
                       </div>
                     </Panel>
@@ -308,14 +311,30 @@ export default async function Page({ searchParams }: PageProps) {
               ) : null}
             </div>
           ) : (
-            <div className="grid min-h-[60vh] place-items-center rounded-[28px] border border-slate-200/70 bg-white/60 p-8 text-center">
+            <div className="grid min-h-[50vh] place-items-center rounded-[24px] border border-slate-200/70 bg-white/60 p-6 text-center sm:min-h-[60vh] sm:p-8 md:rounded-[28px]">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-ink/45">Nothing selected</p>
-                <h2 className="mt-3 font-[family:var(--font-serif)] text-4xl text-ink">Run the crawler, then review here.</h2>
-                <p className="mt-3 max-w-xl text-sm leading-6 text-ink/65">
-                  Once `crawled_articles` has rows, this page will show the latest articles and let you approve,
-                  defer, or reject them.
-                </p>
+                {schemaStatus.hasCrawledArticles ? (
+                  <>
+                    <p className="text-xs font-semibold uppercase tracking-[0.28em] text-ink/45">Nothing selected</p>
+                    <h2 className="mt-3 font-[family:var(--font-serif)] text-3xl text-ink sm:text-4xl">Run the crawler, then review here.</h2>
+                    <p className="mt-3 max-w-xl text-sm leading-6 text-ink/65">
+                      Once `crawled_articles` has rows, this page will show the latest articles and let you approve,
+                      defer, or reject them.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-xs font-semibold uppercase tracking-[0.28em] text-ink/45">Supabase setup needed</p>
+                    <h2 className="mt-3 font-[family:var(--font-serif)] text-3xl text-ink sm:text-4xl">Your shared tables are not in Supabase yet.</h2>
+                    <p className="mt-3 max-w-xl text-sm leading-6 text-ink/65">
+                      The app is live, but `public.crawled_articles` does not exist in this Supabase project yet. Run the schema in
+                      `apps/dashboard/supabase/schema.sql`, then load your article rows into `crawled_articles`.
+                    </p>
+                    <p className="mt-3 text-xs uppercase tracking-[0.18em] text-ink/45">
+                      {schemaStatus.hasArticleReviews ? "article_reviews exists" : "article_reviews missing too"}
+                    </p>
+                  </>
+                )}
               </div>
             </div>
           )}
@@ -388,7 +407,11 @@ function ArticleFlowBlock({
     return <TranslatableText kind="paragraph" original={block.text} translated={paragraphTranslation ?? null} />;
   }
 
-  const previewSrc = block.assetPath ? `/api/media?path=${encodeURIComponent(block.assetPath)}` : null;
+  const previewSrc = block.assetPath
+    ? `/api/media?path=${encodeURIComponent(block.assetPath)}`
+    : block.sourceUrl && block.kind !== "interactive"
+      ? block.sourceUrl
+      : null;
   const iframeSrc = !previewSrc && block.sourceUrl && block.kind === "interactive" ? block.sourceUrl : null;
   const caption = block.caption || block.credit || block.alt || block.title;
 
@@ -450,7 +473,7 @@ function DiscussionTopicsList({ items }: { items: string[] }) {
   return (
     <ol className="space-y-3 text-[15px] leading-7 text-ink/85">
       {items.map((item, index) => (
-        <li key={`discussion-topic-${index}`} className="rounded-2xl border border-slate-200/70 bg-white/58 px-4 py-3">
+        <li key={`discussion-topic-${index}`} className="rounded-2xl border border-slate-200/70 bg-white/58 px-3 py-3 sm:px-4">
           <span className="mr-2 text-xs font-semibold uppercase tracking-[0.16em] text-ink/40">{String(index + 1).padStart(2, "0")}</span>
           {item}
         </li>
@@ -537,7 +560,7 @@ function ActionButton({
   }[tone];
 
   return (
-    <button className={`min-h-11 rounded-2xl px-4 py-2 text-sm font-semibold transition ${styles}`} name="status" type="submit" value={status}>
+    <button className={`min-h-11 w-full rounded-2xl px-4 py-2 text-sm font-semibold transition sm:w-auto ${styles}`} name="status" type="submit" value={status}>
       {label}
     </button>
   );
