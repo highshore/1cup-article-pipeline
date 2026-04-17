@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import styled from "styled-components";
 
 import { BoltIcon, HomeIcon } from "@/components/icons";
 
@@ -9,6 +10,34 @@ const links = [
   { href: "/", label: "Articles", icon: HomeIcon },
   { href: "/runs", label: "Pipeline Runs", icon: BoltIcon },
 ];
+
+const SignOutButton = styled.button`
+  display: inline-flex;
+  min-height: 40px;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.84);
+  padding: 8px 16px;
+  color: #475569;
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition:
+    border-color 140ms ease,
+    color 140ms ease,
+    background-color 140ms ease;
+
+  &:hover {
+    border-color: rgb(203 213 225);
+    color: #0f172a;
+  }
+
+  @media (min-width: 640px) {
+    width: auto;
+  }
+`;
 
 export function AppNav() {
   const pathname = usePathname();
@@ -35,12 +64,9 @@ export function AppNav() {
         })}
       </nav>
 
-      <Link
-        className="inline-flex min-h-10 w-full items-center justify-center rounded-full border border-slate-200/80 bg-white/84 px-4 py-2 text-sm font-semibold text-dusk transition hover:border-slate-300 hover:text-ink sm:w-auto"
-        href="/auth/signout"
-      >
-        Sign out
-      </Link>
+      <form action="/auth/signout" method="post">
+        <SignOutButton type="submit">Sign out</SignOutButton>
+      </form>
     </div>
   );
 }
