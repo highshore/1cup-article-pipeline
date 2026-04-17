@@ -16,6 +16,12 @@ npm run dev
 
 Then open `http://localhost:3000`.
 
+## Environment
+
+The source `.env.local` lives at the repository root. The dashboard npm scripts automatically create
+`apps/dashboard/.env.local` as a symlink to `../../.env.local` when that link is missing, so the Next.js
+sub-app reads the shared env file without duplicating secrets.
+
 ## Database path
 
 By default the app reads:

@@ -3,6 +3,9 @@
   "private": true,
   "version": "0.1.0",
   "scripts": {
+    "predev": "node scripts/ensure-root-env-link.mjs",
+    "prebuild": "node scripts/ensure-root-env-link.mjs",
+    "prestart": "node scripts/ensure-root-env-link.mjs",
     "dev": "next dev",
     "build": "next build --webpack",
     "start": "next start",
@@ -14,7 +17,8 @@
     "better-sqlite3": "^12.8.0",
     "next": "^16.2.3",
     "react": "^19.2.5",
-    "react-dom": "^19.2.5"
+    "react-dom": "^19.2.5",
+    "styled-components": "^6.4.0"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",

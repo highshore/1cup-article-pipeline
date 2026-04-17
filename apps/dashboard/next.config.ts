@@ -5,6 +5,9 @@ import { loadEnvConfig } from "@next/env";
 loadEnvConfig(path.resolve(__dirname, "..", ".."));
 
 const nextConfig: NextConfig = {
+  compiler: {
+    styledComponents: true,
+  },
   turbopack: {
     root: path.resolve(__dirname),
   },

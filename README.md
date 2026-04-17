@@ -4,7 +4,7 @@ Reads English news articles from `input/`, enriches them through a multi-stage L
 
 The repo also includes a browser-based crawler for Financial Times and The Wall Street Journal in `src/crawler/`. It opens Playwright Chromium with the bundled `extensions/bypass-chrome` extension, collects top stories from key sections, skips URLs already saved in a local SQLite store, and writes one JSON file per article into `input/crawled/`.
 The crawler now also saves cropped media assets under `input/crawled/_media/` and inlines their metadata directly inside each article JSON.
-For manual review, a separate Next.js workspace lives in `apps/review-dashboard`, reading the same SQLite database and storing approve/defer/reject decisions in a dedicated review table.
+For manual review, a separate Next.js workspace lives in `apps/dashboard`, reading the same SQLite database and storing approve/defer/reject decisions in a dedicated review table.
 
 **What it produces per article:**
 - Refined English text, re-split into paragraphs
@@ -28,14 +28,15 @@ For manual review, a separate Next.js workspace lives in `apps/review-dashboard`
 
 ## Keys Needed
 
-Create `.env.local` in the project root:
+Create `.env.local` in the repository root:
 
 ```env
 GEMINI_API_KEY=your_gemini_key      # always required — used for image generation
 OPENAI_API_KEY=your_openai_key      # only required if running --backend openai
 ```
 
-The pipeline loads `.env.local` automatically at startup.
+The pipeline loads that file automatically at startup. The Next.js dashboard in `apps/dashboard` uses the same
+root env file through an app-local `.env.local` symlink that its npm scripts create on demand.
 
 ---
 
@@ -82,7 +83,7 @@ uv run article-crawler --source all --limit-per-section 5
 ### Review crawled articles in the dashboard
 
 ```bash
-cd apps/review-dashboard
+cd apps/dashboard
 npm install
 npm run dev
 ```
