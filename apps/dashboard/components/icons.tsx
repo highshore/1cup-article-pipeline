@@ -69,3 +69,12 @@ export function ArrowPathIcon({ className = "h-4 w-4" }: IconProps) {
     </BaseIcon>
   );
 }
+
+export function ShieldIcon({ className = "h-4 w-4" }: IconProps) {
+  return (
+    <BaseIcon className={className}>
+      <path d="M12 3.75 5.25 6.75v5.52c0 4.09 2.76 7.79 6.75 8.98 3.99-1.19 6.75-4.89 6.75-8.98V6.75L12 3.75Z" />
+      <path d="m9.75 12 1.5 1.5 3-3" />
+    </BaseIcon>
+  );
+}

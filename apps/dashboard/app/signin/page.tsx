@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 
+import { getAccessContext } from "@/lib/access";
 import { SignInScreen } from "@/components/sign-in-screen";
 import { getOptionalUser } from "@/lib/auth";
 
@@ -13,7 +14,8 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
   const next = sanitizeNext(getFirst(resolvedSearchParams?.next));
 
   if (user) {
-    redirect(next);
+    const access = await getAccessContext(user);
+    redirect(access.isAuthorized ? next : "/unauthorized");
   }
 
   return <SignInScreen next={next} />;

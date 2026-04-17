@@ -24,12 +24,14 @@ sub-app reads the shared env file without duplicating secrets.
 
 Optional auth controls:
 
-- `DASHBOARD_AUTHORIZED_EMAILS=email1@example.com,email2@example.com`
-- `DASHBOARD_AUTHORIZED_USER_IDS=supabase-user-id-1,supabase-user-id-2`
-- `DASHBOARD_BLOCKED_EMAILS=blocked@example.com`
-- `DASHBOARD_BLOCKED_USER_IDS=blocked-user-id`
+Authorization is now designed to live in Supabase instead of env vars:
 
-If no authorized list is configured, any signed-in user is allowed unless explicitly blocked. Block lists take precedence.
+- `dashboard_user_access.role = 'supreme_leader'` can manage access records
+- `dashboard_user_access.role = 'authorized'` can enter the dashboard after Kakao sign-in
+- `dashboard_user_access.role = 'pending'` is created automatically when an unknown signed-in user first attempts access
+- `dashboard_user_access.role = 'blocked'` is explicitly denied
+
+The first signed-in user is bootstrapped as `supreme_leader` if no leader exists yet. After that, access is managed from the `/access` page.
 
 ## Database path
 

@@ -4,11 +4,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import styled from "styled-components";
 
-import { BoltIcon, HomeIcon } from "@/components/icons";
+import { BoltIcon, HomeIcon, ShieldIcon } from "@/components/icons";
 
 const links = [
   { href: "/", label: "Articles", icon: HomeIcon },
   { href: "/runs", label: "Pipeline Runs", icon: BoltIcon },
+  { href: "/access", label: "Access", icon: ShieldIcon },
 ];
 
 const SignOutButton = styled.button`

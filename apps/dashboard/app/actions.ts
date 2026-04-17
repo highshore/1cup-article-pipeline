@@ -6,6 +6,7 @@ import { spawn } from "node:child_process";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import { deleteAccessRecord, upsertAccessRecord } from "@/lib/access";
 import { requireUser } from "@/lib/auth";
 import { upsertReview, type ReviewStatus } from "@/lib/articles";
 import { createPipelineRun } from "@/lib/runs";
@@ -75,4 +76,51 @@ export async function launchPipelineRun(formData: FormData): Promise<void> {
 
   revalidatePath("/runs");
   redirect(`/runs?runId=${runId}`);
+}
+
+export async function saveAccessRecord(formData: FormData): Promise<void> {
+  const { user, access } = await requireUser();
+
+  if (!access.isSupremeLeader) {
+    throw new Error("Only the supreme leader can update access records.");
+  }
+
+  const idValue = String(formData.get("id") ?? "").trim();
+  const email = String(formData.get("email") ?? "").trim();
+  const userId = String(formData.get("userId") ?? "").trim();
+  const role = String(formData.get("role") ?? "").trim();
+  const note = String(formData.get("note") ?? "");
+
+  if (!["authorized", "pending", "blocked"].includes(role)) {
+    throw new Error("Invalid access role.");
+  }
+
+  await upsertAccessRecord({
+    id: idValue ? Number(idValue) : null,
+    email,
+    userId,
+    role: role as "authorized" | "pending" | "blocked",
+    note,
+    actorUserId: user.id,
+  });
+
+  revalidatePath("/access");
+  redirect("/access");
+}
+
+export async function removeAccessRecord(formData: FormData): Promise<void> {
+  const { access } = await requireUser();
+
+  if (!access.isSupremeLeader) {
+    throw new Error("Only the supreme leader can delete access records.");
+  }
+
+  const id = Number(formData.get("id") ?? 0);
+  if (!Number.isInteger(id) || id <= 0) {
+    throw new Error("Invalid access record ID.");
+  }
+
+  await deleteAccessRecord(id);
+  revalidatePath("/access");
+  redirect("/access");
 }

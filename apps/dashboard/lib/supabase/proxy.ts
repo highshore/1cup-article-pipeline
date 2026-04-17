@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-import { isAuthorizedUser } from "@/lib/auth";
+import { getAccessContextWithClient } from "@/lib/access";
 
 function isSupabaseConfigured(): boolean {
   return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY);
@@ -46,6 +46,7 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  const access = user ? await getAccessContextWithClient(supabase, user) : null;
 
   const pathname = request.nextUrl.pathname;
   const isAuthRoute = pathname === "/signin" || pathname === "/unauthorized" || pathname.startsWith("/auth/");
@@ -57,14 +58,14 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
     return NextResponse.redirect(redirectUrl);
   }
 
-  if (user && !isAuthorizedUser(user) && pathname !== "/unauthorized") {
+  if (user && access && !access.isAuthorized && pathname !== "/unauthorized") {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/unauthorized";
     redirectUrl.search = "";
     return NextResponse.redirect(redirectUrl);
   }
 
-  if (user && pathname === "/signin") {
+  if (user && access?.isAuthorized && pathname === "/signin") {
     const redirectUrl = request.nextUrl.clone();
     const next = sanitizeNext(request.nextUrl.searchParams.get("next"));
     redirectUrl.pathname = next;
@@ -72,7 +73,7 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
     return NextResponse.redirect(redirectUrl);
   }
 
-  if (user && isAuthorizedUser(user) && pathname === "/unauthorized") {
+  if (user && access?.isAuthorized && pathname === "/unauthorized") {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/";
     redirectUrl.search = "";
