@@ -268,7 +268,7 @@ Merge + write output/<article-id>.json
 
 | Stage | Default | Alternative |
 |---|---|---|
-| Text enrichment | Gemma 4 26B MoE (local MLX via `mlx-vlm`) | OpenAI (`--backend openai`) |
+| Text enrichment | Gemma 4 E4B Instruct (`google/gemma-4-E4B-it`, local MLX via `mlx-vlm`) | OpenAI (`--backend openai`) |
 | Image generation | Gemini `gemini-3.1-flash-image-preview` | — |
 | Korean translation | TranslateGemma 12B (local MLX via `mlx-lm`) | different model via `--translator-model` |
 

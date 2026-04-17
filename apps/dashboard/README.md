@@ -22,6 +22,15 @@ The source `.env.local` lives at the repository root. The dashboard npm scripts 
 `apps/dashboard/.env.local` as a symlink to `../../.env.local` when that link is missing, so the Next.js
 sub-app reads the shared env file without duplicating secrets.
 
+Optional auth controls:
+
+- `DASHBOARD_AUTHORIZED_EMAILS=email1@example.com,email2@example.com`
+- `DASHBOARD_AUTHORIZED_USER_IDS=supabase-user-id-1,supabase-user-id-2`
+- `DASHBOARD_BLOCKED_EMAILS=blocked@example.com`
+- `DASHBOARD_BLOCKED_USER_IDS=blocked-user-id`
+
+If no authorized list is configured, any signed-in user is allowed unless explicitly blocked. Block lists take precedence.
+
 ## Database path
 
 By default the app reads:
