@@ -105,7 +105,7 @@ export async function saveAccessRecord(formData: FormData): Promise<void> {
   });
 
   revalidatePath("/access");
-  redirect("/access");
+  redirect(`/access?status=${idValue ? "updated" : "created"}`);
 }
 
 export async function removeAccessRecord(formData: FormData): Promise<void> {
@@ -122,5 +122,5 @@ export async function removeAccessRecord(formData: FormData): Promise<void> {
 
   await deleteAccessRecord(id);
   revalidatePath("/access");
-  redirect("/access");
+  redirect("/access?status=deleted");
 }

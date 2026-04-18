@@ -6,15 +6,21 @@ import { requireUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
+type AccessPageProps = {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
+
 const roleOptions: Array<{ value: "authorized" | "pending" | "blocked"; label: string }> = [
   { value: "authorized", label: "Authorized" },
   { value: "pending", label: "Pending" },
   { value: "blocked", label: "Blocked" },
 ];
 
-export default async function AccessPage() {
+export default async function AccessPage({ searchParams }: AccessPageProps) {
   const { user, access } = await requireUser();
   const { hasAccessTable, records } = await listAccessRecords();
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const status = getFirst(resolvedSearchParams?.status);
 
   return (
     <main className="mx-auto min-h-screen max-w-[1520px] px-3 py-4 sm:px-4 sm:py-6 md:px-6 lg:px-8 lg:py-8">
@@ -42,6 +48,8 @@ export default async function AccessPage() {
           <div className="mt-1 text-sm text-ink/70">{user.email ?? user.id}</div>
         </div>
       </div>
+
+      {status ? <StatusBanner status={status} /> : null}
 
       {!hasAccessTable ? (
         <section className="grid min-h-[50vh] place-items-center rounded-[24px] border border-slate-200/70 bg-white/60 p-6 text-center sm:min-h-[60vh] sm:p-8 md:rounded-[28px]">
@@ -193,4 +201,29 @@ function formatTimestamp(value: string): string {
   } catch {
     return value;
   }
+}
+
+function StatusBanner({ status }: { status: string }) {
+  const message =
+    status === "created"
+      ? "Access record created."
+      : status === "updated"
+        ? "Access record updated."
+        : status === "deleted"
+          ? "Access record deleted."
+          : null;
+
+  if (!message) {
+    return null;
+  }
+
+  return (
+    <div className="mb-5 rounded-[20px] border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-900">
+      {message}
+    </div>
+  );
+}
+
+function getFirst(value: string | string[] | undefined): string {
+  return Array.isArray(value) ? value[0] ?? "" : value ?? "";
 }
