@@ -1,6 +1,5 @@
 import { removeAccessRecord, saveAccessRecord } from "@/app/actions";
 import { AppNav } from "@/components/app-nav";
-import { ShieldIcon } from "@/components/icons";
 import { listAccessRecords, type AccessRecord } from "@/lib/access";
 import { requireUser } from "@/lib/auth";
 
@@ -30,11 +29,7 @@ export default async function AccessPage({ searchParams }: AccessPageProps) {
 
       <div className="mb-6 grid gap-4 sm:mb-8 sm:gap-5 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-end">
         <div className="max-w-3xl">
-          <div className="inline-flex items-center gap-2 rounded-full border border-slate-200/70 bg-white/78 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-dusk">
-            <ShieldIcon className="h-4 w-4" />
-            Dashboard Access
-          </div>
-          <h1 className="mt-3 text-[2rem] font-semibold leading-tight text-ink sm:text-[2.4rem] md:text-5xl">
+          <h1 className="text-[2rem] font-semibold leading-tight text-ink sm:text-[2.4rem] md:text-5xl">
             Manage who can enter after Kakao sign-in.
           </h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-ink/75 md:text-base">

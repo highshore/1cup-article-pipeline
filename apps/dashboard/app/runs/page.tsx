@@ -48,11 +48,7 @@ export default async function RunsPage({ searchParams }: PageProps) {
 
       <div className="mb-6 grid gap-4 sm:mb-8 sm:gap-6 xl:grid-cols-[minmax(0,1fr)_400px]">
         <div>
-          <div className="inline-flex items-center gap-2 rounded-full border border-slate-200/70 bg-white/78 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-dusk">
-            <CommandLineIcon className="h-4 w-4" />
-            Crawler Pipeline Desk
-          </div>
-          <h1 className="mt-3 text-[2rem] font-semibold leading-tight text-ink sm:text-[2.4rem] md:text-5xl">
+          <h1 className="text-[2rem] font-semibold leading-tight text-ink sm:text-[2.4rem] md:text-5xl">
             Trigger the article pipeline and watch it progress live.
           </h1>
           <p className="mt-3 max-w-3xl text-sm leading-6 text-ink/75 md:text-base">

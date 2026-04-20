@@ -1,6 +1,5 @@
 import { updateReviewStatus } from "@/app/actions";
 import { AppNav } from "@/components/app-nav";
-import { NewspaperIcon } from "@/components/icons";
 import { Panel } from "@/components/panel";
 import { TranslatableText } from "@/components/translatable-text";
 import { getArticle, getSources, listArticles, type ArticleContentBlock, type ReviewFilter, type ReviewStatus } from "@/lib/articles";
@@ -51,11 +50,7 @@ export default async function Page({ searchParams }: PageProps) {
 
       <div className="mb-6 grid gap-4 sm:mb-8 sm:gap-5 lg:grid-cols-[minmax(0,1fr)_280px] lg:items-end">
         <div className="max-w-3xl">
-          <div className="inline-flex items-center gap-2 rounded-full border border-slate-200/70 bg-white/78 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-dusk">
-            <NewspaperIcon className="h-4 w-4" />
-            Crawler Review Desk
-          </div>
-          <h1 className="mt-3 text-[2rem] font-semibold leading-tight text-ink sm:text-[2.4rem] md:text-5xl">
+          <h1 className="text-[2rem] font-semibold leading-tight text-ink sm:text-[2.4rem] md:text-5xl">
             Review crawled articles before they move downstream.
           </h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-ink/75 md:text-base">
