@@ -11,6 +11,10 @@ import urllib.request
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+from article_bot_env import load_root_env
+
+load_root_env()
+
 KST = timezone(timedelta(hours=9))
 PIPELINE_KEY = "article-bot"
 DAILY_WORKFLOW_KEY = "article-bot.daily-brief"

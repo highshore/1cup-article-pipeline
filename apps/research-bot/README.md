@@ -6,8 +6,8 @@ article processing, and Kakao delivery.
 
 ## Runtime Model
 
-1. Dashboard writes go through the host-side control server.
-2. Queue, schedule, run, step, criteria, target-source, and artifact state live in SQLite.
+1. Dashboard writes jobs and settings to Supabase/Postgres.
+2. Queue, schedule, run, step, criteria, target-source, and artifact state live in Supabase/Postgres.
 3. The dispatcher turns due schedules or manual dashboard requests into executable work.
 4. The executor runs a LangGraph-style workflow:
    - load criteria and target sources
@@ -49,7 +49,9 @@ python3 apps/research-bot/scripts/article_dispatcher.py --once
 
 ## Environment
 
-- `ARTICLE_BOT_DB_PATH`: override queue DB path.
+- Scripts automatically load the workspace root `.env.local` if it exists. Exported shell variables still take precedence.
+- `SUPABASE_URL`: Supabase project URL for the shared queue.
+- `SUPABASE_SERVICE_ROLE_KEY`: server-only key used by workers to claim and update queue jobs.
 - `ARTICLE_BOT_CONTROL_PORT`: override control server port. Default: `7721`.
 - `ARTICLE_BOT_DRY_RUN=1`: skip the browser crawler and write a dry-run artifact.
 - `KAKAO_WEBHOOK_URL`: optional Kakao webhook endpoint. If missing, delivery is recorded as an artifact only.

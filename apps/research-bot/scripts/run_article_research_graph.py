@@ -18,7 +18,10 @@ except ModuleNotFoundError:  # pragma: no cover - keeps control scripts usable b
     END = START = None
     StateGraph = None  # type: ignore[assignment]
 
+from article_bot_env import load_root_env
 from article_bot_store import add_article_evaluation, add_artifact, update_step
+
+load_root_env()
 
 KST = timezone(timedelta(hours=9))
 REPO_ROOT = Path(__file__).resolve().parents[3]
