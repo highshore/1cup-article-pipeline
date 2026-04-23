@@ -37,7 +37,7 @@ export function LatestCollectionCard({
   const formattedTimestamp = latestCollectedAt ? latestCollectedAt.replace("T", " ").slice(0, 16) : "No records yet";
 
   return (
-    <div className="min-w-0 rounded-[24px] border border-slate-200/75 bg-white/76 p-5 shadow-[0_12px_30px_rgba(15,23,42,0.05)] backdrop-blur xl:max-w-sm">
+    <div className="min-w-0 rounded-[24px] border border-slate-200/75 bg-white/80 p-5 shadow-[0_12px_30px_rgba(15,23,42,0.05)] backdrop-blur xl:max-w-sm">
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-xs uppercase tracking-[0.22em] text-ink/45">Latest crawl</p>

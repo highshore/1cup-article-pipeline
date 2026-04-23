@@ -31,7 +31,7 @@ function buildApiUrl(filters: ArticleDashboardFilters, offset: number, limit: nu
 function ArticleCard({ item }: { item: ArticleDashboardItem }) {
   return (
     <a
-      className="block rounded-[26px] border border-slate-200/75 bg-white/76 p-5 shadow-[0_12px_30px_rgba(15,23,42,0.05)] backdrop-blur transition hover:-translate-y-0.5 hover:border-ember/35 hover:bg-white/90"
+      className="block rounded-[26px] border border-slate-200/75 bg-white/80 p-5 shadow-[0_12px_30px_rgba(15,23,42,0.05)] backdrop-blur transition hover:-translate-y-0.5 hover:border-ember/35 hover:bg-white/90"
       href={item.url}
       rel="noreferrer"
       target="_blank"
@@ -150,7 +150,7 @@ export function ArticleResultsFeed({
 
   if (items.length === 0) {
     return (
-      <div className="rounded-[26px] border border-slate-200/75 bg-white/70 p-8 text-center text-sm leading-7 text-ink/60">
+      <div className="rounded-[26px] border border-slate-200/75 bg-white/80 p-8 text-center text-sm leading-7 text-ink/60">
         No article results match the current filters yet.
       </div>
     );

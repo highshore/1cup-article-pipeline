@@ -125,7 +125,7 @@ export function ArticleOpsDashboard({
       </div>
 
       <section className="rounded-[28px] border border-slate-200/75 bg-white/80 p-7 shadow-panel backdrop-blur sm:p-8">
-        <div className="flex flex-col gap-8 xl:flex-row xl:items-start xl:justify-between">
+        <div className="flex flex-col gap-8 xl:flex-row xl:items-center xl:justify-between">
           <div className="max-w-3xl space-y-4">
             <h1 className="text-[2.5rem] font-semibold leading-tight tracking-[-0.05em] text-ink sm:text-[3.2rem]">
               Article Pipeline
@@ -141,7 +141,7 @@ export function ArticleOpsDashboard({
 
       <section className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
         {data.metrics.map((metric) => (
-          <div key={metric.label} className="relative min-h-[152px] overflow-hidden rounded-[24px] border border-slate-200/75 bg-white/78 p-6 shadow-[0_12px_30px_rgba(15,23,42,0.05)] backdrop-blur">
+          <div key={metric.label} className="relative min-h-[152px] overflow-hidden rounded-[24px] border border-slate-200/75 bg-white/80 p-6 shadow-[0_12px_30px_rgba(15,23,42,0.05)] backdrop-blur">
             <div className="relative z-10 flex h-full flex-col justify-between gap-6">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium text-ink/62">{metric.label}</span>
@@ -336,7 +336,7 @@ export function ArticleOpsDashboard({
 
 function FlowMiniMetric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-slate-200/75 bg-white/76 p-3">
+    <div className="rounded-2xl border border-slate-200/75 bg-white/80 p-3">
       <p className="text-xs uppercase tracking-[0.16em] text-ink/45">{label}</p>
       <p className="mt-2 text-sm font-semibold">{value}</p>
     </div>
@@ -348,7 +348,7 @@ function ScheduleForm({ schedule }: { schedule: ArticleDashboardData["pipelineSc
     <AsyncForm
       action="/api/pipeline-schedules"
       checkboxGroupName="weekdays"
-      className="space-y-5"
+      className="space-y-7"
     >
       <input name="scheduleKey" type="hidden" value="daily_kakao_report" />
       <div className="space-y-3">
@@ -380,7 +380,7 @@ function ScheduleForm({ schedule }: { schedule: ArticleDashboardData["pipelineSc
 
 function RunHistoryCard({ run }: { run: ArticleDashboardData["pipelineRuns"][number] }) {
   return (
-    <div className="block rounded-2xl border border-slate-200/75 bg-white/70 p-4">
+    <div className="block rounded-2xl border border-slate-200/75 bg-white/80 p-4">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-sm font-semibold">{run.recordedAt.replace("T", " ").slice(0, 16)}</p>
