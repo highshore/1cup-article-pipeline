@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { startTransition, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
 function restoreScrollPosition(scrollY: number) {
@@ -18,6 +18,8 @@ export function AsyncForm({
   checkboxGroupName,
   maxCheckedValues,
   maxCheckedMessage,
+  autoSubmit = false,
+  autoSubmitDelayMs = 250,
   children,
 }: {
   action?: string;
@@ -26,12 +28,23 @@ export function AsyncForm({
   checkboxGroupName?: string;
   maxCheckedValues?: number;
   maxCheckedMessage?: string;
+  autoSubmit?: boolean;
+  autoSubmitDelayMs?: number;
   children: ReactNode;
 }) {
   const router = useRouter();
   const pathname = usePathname();
   const [isPending, setIsPending] = useState(false);
   const formRef = useRef<HTMLFormElement | null>(null);
+  const autoSubmitTimeoutRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (autoSubmitTimeoutRef.current) {
+        window.clearTimeout(autoSubmitTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -89,8 +102,22 @@ export function AsyncForm({
     }
   };
 
+  const handleChange = () => {
+    if (!autoSubmit || method !== "get") {
+      return;
+    }
+
+    if (autoSubmitTimeoutRef.current) {
+      window.clearTimeout(autoSubmitTimeoutRef.current);
+    }
+
+    autoSubmitTimeoutRef.current = window.setTimeout(() => {
+      formRef.current?.requestSubmit();
+    }, autoSubmitDelayMs);
+  };
+
   return (
-    <form ref={formRef} action={action} method={method} className={className} onSubmit={handleSubmit}>
+    <form ref={formRef} action={action} method={method} className={className} onChange={handleChange} onSubmit={handleSubmit}>
       <fieldset className="contents" disabled={isPending}>
         {children}
       </fieldset>

@@ -306,7 +306,7 @@ export function ArticleOpsDashboard({
               <h2 className={sectionHeadingClass}>Filters</h2>
             </div>
 
-            <AsyncForm className="grid gap-4 lg:grid-cols-[1.3fr_repeat(4,minmax(0,1fr))_auto]" method="get">
+            <AsyncForm autoSubmit className="grid gap-4 lg:grid-cols-[1.3fr_repeat(4,minmax(0,1fr))_auto]" method="get">
               <label className="grid gap-2 text-sm text-ink/70">
                 <span className="font-semibold text-ink">Search</span>
                 <input className="min-h-11 rounded-2xl border border-slate-200 bg-white/86 px-4 outline-none" defaultValue={data.filters.search} name="search" placeholder="markets, climate, AI..." />
@@ -318,8 +318,7 @@ export function ArticleOpsDashboard({
                 <span className="font-semibold text-ink">Crawl date</span>
                 <input className="min-h-11 rounded-2xl border border-slate-200 bg-white/86 px-4 text-sm outline-none" defaultValue={data.filters.collectedOn} name="collectedOn" type="date" />
               </label>
-              <div className="flex items-end gap-3">
-                <button className="inline-flex min-h-11 items-center justify-center rounded-2xl bg-ink px-5 font-semibold text-white hover:bg-ink/90" type="submit">Apply</button>
+              <div className="flex items-end">
                 <Link className="inline-flex min-h-11 items-center justify-center rounded-2xl border border-slate-200 px-4 text-sm font-semibold text-ink/60 hover:bg-white/70" href="/runs">Reset</Link>
               </div>
             </AsyncForm>
@@ -349,25 +348,23 @@ function ScheduleForm({ schedule }: { schedule: ArticleDashboardData["pipelineSc
     <AsyncForm
       action="/api/pipeline-schedules"
       checkboxGroupName="weekdays"
-      className="space-y-4"
+      className="space-y-5"
     >
       <input name="scheduleKey" type="hidden" value="daily_kakao_report" />
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="font-semibold">Select weekdays</p>
+      <div className="space-y-3">
+        <p className="text-sm font-semibold text-ink">Select weekdays</p>
+        <div className="grid grid-cols-7 gap-2">
+          {weekdayOptions.map((weekday) => (
+            <label key={`daily-kakao-${weekday.value}`} className="cursor-pointer">
+              <input className="peer sr-only" defaultChecked={schedule?.weekdays.includes(weekday.value) ?? false} name="weekdays" type="checkbox" value={String(weekday.value)} />
+              <span className="inline-flex h-10 w-full items-center justify-center rounded-xl border border-slate-200 bg-white/78 text-xs font-semibold text-ink/55 transition peer-checked:border-ink peer-checked:bg-ink peer-checked:text-white">
+                {weekday.label}
+              </span>
+            </label>
+          ))}
         </div>
       </div>
-      <div className="grid grid-cols-7 gap-2">
-        {weekdayOptions.map((weekday) => (
-          <label key={`daily-kakao-${weekday.value}`} className="cursor-pointer">
-            <input className="peer sr-only" defaultChecked={schedule?.weekdays.includes(weekday.value) ?? false} name="weekdays" type="checkbox" value={String(weekday.value)} />
-            <span className="inline-flex h-10 w-full items-center justify-center rounded-2xl border border-slate-200 bg-white/78 text-xs font-semibold text-ink/55 transition peer-checked:border-ink peer-checked:bg-ink peer-checked:text-white">
-              {weekday.label}
-            </span>
-          </label>
-        ))}
-      </div>
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
         <label className="grid flex-1 gap-2 text-sm text-ink/70">
           <span className="font-semibold text-ink">Time</span>
           <input className="min-h-11 rounded-2xl border border-slate-200 bg-white px-4 text-sm outline-none" defaultValue={schedule?.timeOfDay ?? "09:00"} name="timeOfDay" type="time" />
