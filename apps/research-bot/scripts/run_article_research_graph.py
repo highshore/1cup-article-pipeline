@@ -18,7 +18,7 @@ except ModuleNotFoundError:  # pragma: no cover - keeps control scripts usable b
     END = START = None
     StateGraph = None  # type: ignore[assignment]
 
-from article_bot_store import add_artifact, now_iso, update_step
+from article_bot_store import add_article_evaluation, add_artifact, update_step
 
 KST = timezone(timedelta(hours=9))
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -83,9 +83,9 @@ def score_article(row: sqlite3.Row, criteria: list[str]) -> tuple[float, dict[st
     document = safe_json_loads(str(row["document_json"] or "{}"), {})
     media_count = 0
     if isinstance(document, dict):
-      article_blocks = document.get("article")
-      if isinstance(article_blocks, list):
-          media_count = sum(1 for block in article_blocks if isinstance(block, dict) and block.get("type") == "media")
+        article_blocks = document.get("article")
+        if isinstance(article_blocks, list):
+            media_count = sum(1 for block in article_blocks if isinstance(block, dict) and block.get("type") == "media")
 
     signals = {
         "C1 vocabulary density": min(1.0, sum(1 for token in ["policy", "regulatory", "inflation", "earnings", "outlook", "scrutiny"] if token in haystack) / 4),
@@ -185,15 +185,17 @@ def node_evaluate_articles(state: ArticleGraphState) -> ArticleGraphState:
             "notes": notes,
         }
         evaluated.append(payload)
-        conn.execute(
-            """
-            INSERT INTO article_evaluations (
-              run_id, article_id, url, title, source, score, criteria_json, notes, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (state["run_id"], row["article_id"], row["url"], row["title"], row["source"], score, json.dumps(signals), notes, now_iso()),
+        add_article_evaluation(
+            conn,
+            run_id=state["run_id"],
+            article_id=row["article_id"],
+            url=row["url"],
+            title=row["title"],
+            source=row["source"],
+            score=score,
+            criteria=signals,
+            notes=notes,
         )
-    conn.commit()
     evaluated.sort(key=lambda item: float(item["score"]), reverse=True)
     add_artifact(conn, state["run_id"], "article-evaluations", json.dumps(evaluated[:20], ensure_ascii=False))
     update_step(conn, state["run_id"], "evaluate_articles", "success")
@@ -279,8 +281,9 @@ class SequentialArticleGraph:
         return state
 
 
-def run_article_research_graph(*, conn: sqlite3.Connection, request: sqlite3.Row, run_id: int) -> dict[str, Any]:
-    payload = safe_json_loads(str(request["payload_json"] or "{}"), {})
+def run_article_research_graph(*, conn: Any, request: dict[str, Any], run_id: int) -> dict[str, Any]:
+    raw_payload = request.get("payload_json")
+    payload = raw_payload if isinstance(raw_payload, dict) else safe_json_loads(str(raw_payload or "{}"), {})
     graph = build_graph()
     result = graph.invoke(
         {

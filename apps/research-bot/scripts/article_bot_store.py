@@ -1,18 +1,17 @@
 #!/usr/bin/env python3
-"""SQLite queue/control helpers owned by apps/research-bot."""
+"""Supabase/Postgres queue/control helpers owned by apps/research-bot."""
 
 from __future__ import annotations
 
 import json
 import os
-import sqlite3
+import urllib.error
+import urllib.parse
+import urllib.request
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
-from urllib.parse import urlparse
+from typing import Any
 
 KST = timezone(timedelta(hours=9))
-REPO_ROOT = Path(__file__).resolve().parents[3]
-DB_PATH = Path(os.environ.get("ARTICLE_BOT_DB_PATH", REPO_ROOT / "apps" / "research-bot" / "data" / "article-dashboard.sqlite"))
 PIPELINE_KEY = "article-bot"
 DAILY_WORKFLOW_KEY = "article-bot.daily-brief"
 WEEKLY_WORKFLOW_KEY = "article-bot.weekly-brief"
@@ -25,55 +24,69 @@ DEFAULT_PRIORITY_TARGETS = [
     "Business relevance",
     "Chart / media usefulness",
 ]
-DEFAULT_PIPELINE_SCHEDULES = [
-    {
-        "schedule_key": "daily_kakao_report",
-        "report_type": "daily-kakao-report",
-        "cadence": "daily",
-        "weekdays": [],
-        "time_of_day": "09:00",
-    },
-    {
-        "schedule_key": "weekly_kakao_report",
-        "report_type": "weekly-kakao-report",
-        "cadence": "weekly",
-        "weekdays": [],
-        "time_of_day": "09:00",
-    },
-]
 
-PIPELINE_STAGES = [
-    {
-        "stage_key": "load_settings",
-        "stage_label": "Load criteria",
-        "stage_detail": "Read target sources, evaluation criteria, schedule metadata, and run options.",
-    },
-    {
-        "stage_key": "crawl_sources",
-        "stage_label": "Crawl WSJ / FT",
-        "stage_detail": "Collect fresh stories from Wall Street Journal and Financial Times sections.",
-    },
-    {
-        "stage_key": "normalize_articles",
-        "stage_label": "Normalize articles",
-        "stage_detail": "Canonicalize URLs, fold duplicates, and prepare crawler rows for evaluation.",
-    },
-    {
-        "stage_key": "evaluate_articles",
-        "stage_label": "Evaluate fit",
-        "stage_detail": "Score articles against lesson value, C1 vocabulary, discussion potential, and business relevance.",
-    },
-    {
-        "stage_key": "process_articles",
-        "stage_label": "Process outputs",
-        "stage_detail": "Run translation, summaries, discussion prompts, vocabulary extraction, and media sidecars.",
-    },
-    {
-        "stage_key": "deliver_kakao",
-        "stage_label": "Notify Kakao",
-        "stage_detail": "Build a compact Kakao-ready brief with links back to the dashboard.",
-    },
-]
+
+class SupabaseStore:
+    """Small PostgREST/RPC client so the worker can run without extra Python deps."""
+
+    def __init__(self) -> None:
+        url = os.environ.get("SUPABASE_URL") or os.environ.get("NEXT_PUBLIC_SUPABASE_URL")
+        key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("SUPABASE_SERVICE_KEY")
+        if not (url and key):
+            raise RuntimeError("Missing SUPABASE_URL/NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY for article-bot queue access.")
+        self.base_url = url.rstrip("/")
+        self.key = key
+
+    def close(self) -> None:
+        return
+
+    def table(self, table: str, *, query: dict[str, str] | None = None) -> Any:
+        return self._request("GET", f"/rest/v1/{table}", query=query)
+
+    def insert(self, table: str, payload: dict[str, Any] | list[dict[str, Any]], *, returning: bool = False) -> Any:
+        return self._request("POST", f"/rest/v1/{table}", payload, prefer="return=representation" if returning else "return=minimal")
+
+    def update(self, table: str, payload: dict[str, Any], *, query: dict[str, str]) -> Any:
+        return self._request("PATCH", f"/rest/v1/{table}", payload, query=query, prefer="return=minimal")
+
+    def delete(self, table: str, *, query: dict[str, str]) -> Any:
+        return self._request("DELETE", f"/rest/v1/{table}", query=query, prefer="return=minimal")
+
+    def rpc(self, name: str, payload: dict[str, Any] | None = None) -> Any:
+        return self._request("POST", f"/rest/v1/rpc/{name}", payload or {})
+
+    def _request(
+        self,
+        method: str,
+        path: str,
+        payload: dict[str, Any] | list[dict[str, Any]] | None = None,
+        *,
+        query: dict[str, str] | None = None,
+        prefer: str | None = None,
+    ) -> Any:
+        url = f"{self.base_url}{path}"
+        if query:
+            url = f"{url}?{urllib.parse.urlencode(query)}"
+        body = json.dumps(payload, ensure_ascii=False).encode("utf-8") if payload is not None else None
+        headers = {
+            "apikey": self.key,
+            "Authorization": f"Bearer {self.key}",
+            "Accept": "application/json",
+        }
+        if payload is not None:
+            headers["Content-Type"] = "application/json"
+        if prefer:
+            headers["Prefer"] = prefer
+        request = urllib.request.Request(url, data=body, headers=headers, method=method)
+        try:
+            with urllib.request.urlopen(request, timeout=30) as response:  # noqa: S310
+                response_body = response.read().decode("utf-8")
+        except urllib.error.HTTPError as exc:
+            error_body = exc.read().decode("utf-8", errors="replace")
+            raise RuntimeError(f"Supabase {method} {path} failed ({exc.code}): {error_body}") from exc
+        if not response_body:
+            return None
+        return json.loads(response_body)
 
 
 def now_iso() -> str:
@@ -84,180 +97,29 @@ def run_date() -> str:
     return datetime.now(KST).strftime("%Y-%m-%d")
 
 
-def get_connection() -> sqlite3.Connection:
-    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    ensure_schema(conn)
-    return conn
-
-
-def ensure_schema(conn: sqlite3.Connection) -> None:
-    target_sources_existed = conn.execute(
-        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'target_sources' LIMIT 1"
-    ).fetchone()
-
-    conn.executescript(
-        """
-        CREATE TABLE IF NOT EXISTS priority_targets (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          label TEXT NOT NULL COLLATE NOCASE UNIQUE,
-          sort_order INTEGER NOT NULL DEFAULT 0,
-          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-        );
-
-        CREATE TABLE IF NOT EXISTS target_sources (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          domain TEXT NOT NULL COLLATE NOCASE UNIQUE,
-          sort_order INTEGER NOT NULL DEFAULT 0,
-          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-        );
-
-        CREATE TABLE IF NOT EXISTS pipeline_schedules (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          schedule_key TEXT NOT NULL COLLATE NOCASE UNIQUE,
-          report_type TEXT NOT NULL,
-          cadence TEXT NOT NULL,
-          weekdays_json TEXT NOT NULL DEFAULT '[]',
-          time_of_day TEXT NOT NULL DEFAULT '09:00',
-          timezone_name TEXT NOT NULL DEFAULT 'Asia/Seoul',
-          last_enqueued_slot TEXT,
-          last_enqueued_at TEXT,
-          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-          updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-        );
-
-        CREATE TABLE IF NOT EXISTS pipeline_run_requests (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          pipeline_key TEXT NOT NULL,
-          workflow_key TEXT NOT NULL,
-          trigger_source TEXT NOT NULL,
-          requested_by TEXT,
-          executor TEXT NOT NULL DEFAULT 'local',
-          status TEXT NOT NULL,
-          payload_json TEXT,
-          requested_at TEXT NOT NULL,
-          claimed_at TEXT,
-          started_at TEXT,
-          finished_at TEXT,
-          cancel_requested_at TEXT,
-          cancel_requested_by TEXT,
-          collection_run_id INTEGER,
-          backend_metadata_json TEXT,
-          error_text TEXT,
-          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-        );
-
-        CREATE TABLE IF NOT EXISTS collection_runs (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          request_id INTEGER,
-          cadence TEXT NOT NULL,
-          run_date TEXT NOT NULL,
-          status TEXT NOT NULL,
-          source_scope TEXT NOT NULL,
-          executor TEXT,
-          started_at TEXT,
-          finished_at TEXT,
-          notes TEXT,
-          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-        );
-
-        CREATE TABLE IF NOT EXISTS pipeline_run_steps (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          run_id INTEGER NOT NULL,
-          stage_key TEXT NOT NULL,
-          stage_label TEXT NOT NULL,
-          stage_detail TEXT NOT NULL,
-          stage_order INTEGER NOT NULL,
-          status TEXT NOT NULL,
-          updated_at TEXT NOT NULL,
-          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-        );
-
-        CREATE TABLE IF NOT EXISTS artifacts (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          run_id INTEGER,
-          artifact_type TEXT NOT NULL,
-          content TEXT,
-          file_path TEXT,
-          created_at TEXT NOT NULL
-        );
-
-        CREATE TABLE IF NOT EXISTS article_evaluations (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          run_id INTEGER,
-          article_id TEXT NOT NULL,
-          url TEXT NOT NULL,
-          title TEXT NOT NULL,
-          source TEXT NOT NULL,
-          score REAL NOT NULL,
-          criteria_json TEXT NOT NULL,
-          notes TEXT,
-          created_at TEXT NOT NULL
-        );
-
-        CREATE INDEX IF NOT EXISTS idx_priority_targets_sort_order ON priority_targets(sort_order, id);
-        CREATE INDEX IF NOT EXISTS idx_target_sources_sort_order ON target_sources(sort_order, id);
-        CREATE INDEX IF NOT EXISTS idx_pipeline_schedules_cadence ON pipeline_schedules(cadence, schedule_key);
-        CREATE INDEX IF NOT EXISTS idx_pipeline_run_requests_status ON pipeline_run_requests(status, requested_at DESC);
-        CREATE INDEX IF NOT EXISTS idx_collection_runs_status ON collection_runs(status, created_at DESC);
-        CREATE INDEX IF NOT EXISTS idx_pipeline_run_steps_run_order ON pipeline_run_steps(run_id, stage_order);
-        CREATE INDEX IF NOT EXISTS idx_article_evaluations_run_score ON article_evaluations(run_id, score DESC);
-        """
-    )
-
-    count = conn.execute("SELECT COUNT(*) AS count FROM priority_targets").fetchone()["count"]
-    if int(count) == 0:
-        for index, label in enumerate(DEFAULT_PRIORITY_TARGETS):
-            conn.execute(
-                "INSERT OR IGNORE INTO priority_targets (label, sort_order) VALUES (?, ?)",
-                (label, index),
-            )
-
-    if target_sources_existed is None:
-        for index, domain in enumerate(DEFAULT_TARGET_SOURCES):
-            conn.execute(
-                "INSERT OR IGNORE INTO target_sources (domain, sort_order) VALUES (?, ?)",
-                (domain, index),
-            )
-
-    for schedule in DEFAULT_PIPELINE_SCHEDULES:
-        conn.execute(
-            """
-            INSERT OR IGNORE INTO pipeline_schedules (
-              schedule_key, report_type, cadence, weekdays_json, time_of_day, timezone_name, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                schedule["schedule_key"],
-                schedule["report_type"],
-                schedule["cadence"],
-                json.dumps(schedule["weekdays"]),
-                schedule["time_of_day"],
-                "Asia/Seoul",
-                now_iso(),
-            ),
-        )
-    conn.commit()
+def get_connection() -> SupabaseStore:
+    return SupabaseStore()
 
 
 def normalize_target_source_domain(value: str) -> str:
     collapsed = " ".join(str(value).strip().split()).lower()
     if not collapsed:
         return ""
-    parsed = urlparse(collapsed if "://" in collapsed else f"https://{collapsed}")
+    parsed = urllib.parse.urlparse(collapsed if "://" in collapsed else f"https://{collapsed}")
     host = (parsed.netloc or parsed.path or "").split("/", 1)[0].split("?", 1)[0].split("#", 1)[0]
     return host.replace("www.", "", 1).strip(".")
 
 
-def load_target_sources(conn: sqlite3.Connection) -> list[str]:
-    rows = conn.execute("SELECT domain FROM target_sources ORDER BY sort_order, id").fetchall()
-    return [str(row["domain"]).strip().lower() for row in rows if str(row["domain"]).strip()]
+def load_target_sources(store: SupabaseStore) -> list[str]:
+    rows = store.table("target_sources", query={"select": "domain", "order": "sort_order.asc,id.asc"})
+    values = [str(row.get("domain", "")).strip().lower() for row in rows if str(row.get("domain", "")).strip()]
+    return values or DEFAULT_TARGET_SOURCES
 
 
-def load_priority_targets(conn: sqlite3.Connection) -> list[str]:
-    rows = conn.execute("SELECT label FROM priority_targets ORDER BY sort_order, id").fetchall()
-    return [str(row["label"]).strip() for row in rows if str(row["label"]).strip()]
+def load_priority_targets(store: SupabaseStore) -> list[str]:
+    rows = store.table("priority_targets", query={"select": "label", "order": "sort_order.asc,id.asc"})
+    values = [str(row.get("label", "")).strip() for row in rows if str(row.get("label", "")).strip()]
+    return values or DEFAULT_PRIORITY_TARGETS
 
 
 def normalize_schedule_weekdays(values: list[object], *, allow_multiple: bool) -> list[int]:
@@ -303,19 +165,6 @@ def workflow_key_for_cadence(cadence: str) -> str:
     return WEEKLY_WORKFLOW_KEY if cadence == "weekly" else DAILY_WORKFLOW_KEY
 
 
-def _has_active_pipeline_work(conn: sqlite3.Connection) -> bool:
-    active_request = conn.execute(
-        """
-        SELECT 1 FROM pipeline_run_requests
-        WHERE status IN ('requested', 'claimed', 'submitted', 'running', 'cancelling')
-        LIMIT 1
-        """
-    ).fetchone()
-    if active_request is not None:
-        return True
-    return conn.execute("SELECT 1 FROM collection_runs WHERE status IN ('queued', 'running') LIMIT 1").fetchone() is not None
-
-
 def enqueue_pipeline_run_request(
     *,
     trigger_source: str,
@@ -325,319 +174,233 @@ def enqueue_pipeline_run_request(
     payload_updates: dict[str, object] | None = None,
     metadata_updates: dict[str, object] | None = None,
 ) -> dict[str, object]:
-    conn = get_connection()
+    store = get_connection()
     try:
-        with conn:
-            if _has_active_pipeline_work(conn):
-                return {"ok": False, "reason": "active-run-exists"}
-            target_sources = load_target_sources(conn)
-            priority_targets = load_priority_targets(conn)
-            resolved_workflow_key = workflow_key or workflow_key_for_cadence(cadence)
-            payload: dict[str, object] = {
-                "cadence": cadence,
-                "workflowKey": resolved_workflow_key,
-                "requestedFrom": trigger_source,
-                "sources": target_sources,
-                "targetSourceDomains": target_sources,
-                "criteria": priority_targets,
-                "sections": ["frontpage", "business", "tech", "lifestyle"],
-                "limitPerSection": 5,
-                "notification": "kakao",
-            }
-            if payload_updates:
-                payload.update(payload_updates)
-            metadata: dict[str, object] = {"submissionMode": "dispatcher", "dispatcher": "article-bot"}
-            if metadata_updates:
-                metadata.update(metadata_updates)
-            conn.execute(
-                """
-                INSERT INTO pipeline_run_requests (
-                  pipeline_key, workflow_key, trigger_source, requested_by, executor, status,
-                  payload_json, requested_at, backend_metadata_json
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    PIPELINE_KEY,
-                    resolved_workflow_key,
-                    trigger_source,
-                    requested_by,
-                    "local",
-                    "requested",
-                    json.dumps(payload, ensure_ascii=False),
-                    now_iso(),
-                    json.dumps(metadata, ensure_ascii=False),
-                ),
-            )
-            request_id = int(conn.execute("SELECT last_insert_rowid()").fetchone()[0])
-            return {"ok": True, "requestId": request_id}
+        target_sources = load_target_sources(store)
+        priority_targets = load_priority_targets(store)
+        resolved_workflow_key = workflow_key or workflow_key_for_cadence(cadence)
+        payload: dict[str, object] = {
+            "cadence": cadence,
+            "workflowKey": resolved_workflow_key,
+            "requestedFrom": trigger_source,
+            "sources": target_sources,
+            "targetSourceDomains": target_sources,
+            "criteria": priority_targets,
+            "sections": ["frontpage", "business", "tech", "lifestyle"],
+            "limitPerSection": 5,
+            "notification": "kakao",
+        }
+        if payload_updates:
+            payload.update(payload_updates)
+        metadata: dict[str, object] = {"submissionMode": "dispatcher", "dispatcher": "article-bot"}
+        if metadata_updates:
+            metadata.update(metadata_updates)
+        result = store.rpc(
+            "article_bot_enqueue_pipeline_request",
+            {
+                "p_trigger_source": trigger_source,
+                "p_requested_by": requested_by,
+                "p_cadence": cadence,
+                "p_workflow_key": resolved_workflow_key,
+                "p_payload_json": payload,
+                "p_backend_metadata_json": metadata,
+            },
+        )
+        return result if isinstance(result, dict) else {"ok": False, "reason": "invalid-rpc-result"}
     finally:
-        conn.close()
+        store.close()
 
 
 def cancel_active_pipeline_request(*, requested_by: str) -> dict[str, object]:
-    conn = get_connection()
-    timestamp = now_iso()
+    store = get_connection()
     try:
-        with conn:
-            row = conn.execute(
-                """
-                SELECT id, status, collection_run_id
-                FROM pipeline_run_requests
-                WHERE status IN ('requested', 'claimed', 'submitted', 'running', 'cancelling')
-                ORDER BY requested_at DESC, id DESC
-                LIMIT 1
-                """
-            ).fetchone()
-            if row is None:
-                return {"ok": False, "reason": "no-active-request"}
-            request_id = int(row["id"])
-            if str(row["status"]) in {"requested", "claimed"}:
-                conn.execute(
-                    """
-                    UPDATE pipeline_run_requests
-                    SET status = 'cancelled',
-                        finished_at = COALESCE(finished_at, ?),
-                        cancel_requested_at = COALESCE(cancel_requested_at, ?),
-                        cancel_requested_by = COALESCE(cancel_requested_by, ?),
-                        error_text = COALESCE(error_text, ?)
-                    WHERE id = ?
-                    """,
-                    (timestamp, timestamp, requested_by, f"Cancelled from {requested_by}", request_id),
-                )
-                return {"ok": True, "requestId": request_id, "status": "cancelled"}
-            conn.execute(
-                """
-                UPDATE pipeline_run_requests
-                SET status = 'cancelling',
-                    cancel_requested_at = COALESCE(cancel_requested_at, ?),
-                    cancel_requested_by = COALESCE(cancel_requested_by, ?)
-                WHERE id = ?
-                """,
-                (timestamp, requested_by, request_id),
-            )
-            return {"ok": True, "requestId": request_id, "status": "cancelling"}
+        result = store.rpc("article_bot_cancel_active_pipeline_request", {"p_requested_by": requested_by})
+        return result if isinstance(result, dict) else {"ok": False, "reason": "invalid-rpc-result"}
     finally:
-        conn.close()
+        store.close()
 
 
 def add_priority_target(label: str) -> dict[str, object]:
     normalized = " ".join(str(label).strip().split())[:60]
     if not normalized:
         return {"ok": False, "reason": "empty-label"}
-    conn = get_connection()
+    store = get_connection()
     try:
-        with conn:
-            result = conn.execute(
-                """
-                INSERT OR IGNORE INTO priority_targets (label, sort_order)
-                VALUES (?, COALESCE((SELECT MAX(sort_order) + 1 FROM priority_targets), 0))
-                """,
-                (normalized,),
-            )
-            return {"ok": result.rowcount > 0}
+        rows = store.table("priority_targets", query={"select": "sort_order", "order": "sort_order.desc", "limit": "1"})
+        next_order = int(rows[0]["sort_order"]) + 1 if rows else 0
+        store.insert("priority_targets", {"label": normalized, "sort_order": next_order})
+        return {"ok": True}
     finally:
-        conn.close()
+        store.close()
 
 
 def delete_priority_target(target_id: int) -> dict[str, object]:
-    conn = get_connection()
+    store = get_connection()
     try:
-        with conn:
-            result = conn.execute("DELETE FROM priority_targets WHERE id = ?", (target_id,))
-            return {"ok": result.rowcount > 0}
+        store.delete("priority_targets", query={"id": f"eq.{target_id}"})
+        return {"ok": True}
     finally:
-        conn.close()
+        store.close()
 
 
 def add_target_source(domain: str) -> dict[str, object]:
     normalized = normalize_target_source_domain(domain)
     if not normalized:
         return {"ok": False, "reason": "empty-domain"}
-    conn = get_connection()
+    store = get_connection()
     try:
-        with conn:
-            result = conn.execute(
-                """
-                INSERT OR IGNORE INTO target_sources (domain, sort_order)
-                VALUES (?, COALESCE((SELECT MAX(sort_order) + 1 FROM target_sources), 0))
-                """,
-                (normalized,),
-            )
-            return {"ok": result.rowcount > 0}
+        rows = store.table("target_sources", query={"select": "sort_order", "order": "sort_order.desc", "limit": "1"})
+        next_order = int(rows[0]["sort_order"]) + 1 if rows else 0
+        store.insert("target_sources", {"domain": normalized, "sort_order": next_order})
+        return {"ok": True}
     finally:
-        conn.close()
+        store.close()
 
 
 def delete_target_source(target_source_id: int) -> dict[str, object]:
-    conn = get_connection()
+    store = get_connection()
     try:
-        with conn:
-            result = conn.execute("DELETE FROM target_sources WHERE id = ?", (target_source_id,))
-            return {"ok": result.rowcount > 0}
+        store.delete("target_sources", query={"id": f"eq.{target_source_id}"})
+        return {"ok": True}
     finally:
-        conn.close()
+        store.close()
 
 
 def upsert_pipeline_schedule(*, schedule_key: str, weekdays: list[object], time_of_day: str) -> dict[str, object]:
-    default = next((schedule for schedule in DEFAULT_PIPELINE_SCHEDULES if schedule["schedule_key"] == schedule_key), None)
-    if default is None:
+    cadence = "weekly" if schedule_key == "weekly_kakao_report" else "daily"
+    if schedule_key not in {"daily_kakao_report", "weekly_kakao_report"}:
         return {"ok": False, "reason": "invalid-schedule-key"}
     normalized_time = normalize_time_of_day(time_of_day)
     if not normalized_time:
         return {"ok": False, "reason": "invalid-time"}
-    cadence = str(default["cadence"])
     normalized_weekdays = normalize_schedule_weekdays(weekdays, allow_multiple=cadence == "daily")
     baseline_slot = most_recent_due_slot(normalized_weekdays, normalized_time)
-    conn = get_connection()
+    store = get_connection()
     try:
-        with conn:
-            conn.execute(
-                """
-                UPDATE pipeline_schedules
-                SET weekdays_json = ?,
-                    time_of_day = ?,
-                    last_enqueued_slot = ?,
-                    updated_at = ?
-                WHERE schedule_key = ?
-                """,
-                (json.dumps(normalized_weekdays), normalized_time, baseline_slot, now_iso(), schedule_key),
-            )
-            return {"ok": True}
+        store.update(
+            "pipeline_schedules",
+            {
+                "weekdays_json": normalized_weekdays,
+                "time_of_day": normalized_time,
+                "last_enqueued_slot": baseline_slot,
+                "updated_at": now_iso(),
+            },
+            query={"schedule_key": f"eq.{schedule_key}"},
+        )
+        return {"ok": True}
     finally:
-        conn.close()
+        store.close()
 
 
-def process_due_pipeline_schedules(conn: sqlite3.Connection) -> list[dict[str, object]]:
+def process_due_pipeline_schedules(store: SupabaseStore) -> list[dict[str, object]]:
     enqueued: list[dict[str, object]] = []
-    rows = conn.execute("SELECT * FROM pipeline_schedules ORDER BY id").fetchall()
+    rows = store.table(
+        "pipeline_schedules",
+        query={"select": "*", "order": "id.asc"},
+    )
     for row in rows:
-        cadence = str(row["cadence"] or "daily")
-        try:
-            parsed_weekdays = json.loads(str(row["weekdays_json"] or "[]"))
-        except json.JSONDecodeError:
-            parsed_weekdays = []
-        weekdays = normalize_schedule_weekdays(parsed_weekdays if isinstance(parsed_weekdays, list) else [], allow_multiple=cadence == "daily")
-        due_slot = most_recent_due_slot(weekdays, str(row["time_of_day"] or ""))
-        if due_slot is None or str(row["last_enqueued_slot"] or "") == due_slot:
+        cadence = str(row.get("cadence") or "daily")
+        parsed_weekdays = row.get("weekdays_json") if isinstance(row.get("weekdays_json"), list) else []
+        weekdays = normalize_schedule_weekdays(parsed_weekdays, allow_multiple=cadence == "daily")
+        due_slot = most_recent_due_slot(weekdays, str(row.get("time_of_day") or ""))
+        if due_slot is None or str(row.get("last_enqueued_slot") or "") == due_slot:
             continue
         result = enqueue_pipeline_run_request(
             trigger_source="scheduler",
-            requested_by=f"schedule:{row['schedule_key']}",
+            requested_by=f"schedule:{row.get('schedule_key')}",
             cadence=cadence,
             workflow_key=workflow_key_for_cadence(cadence),
             payload_updates={
-                "scheduleKey": str(row["schedule_key"]),
-                "reportType": str(row["report_type"]),
+                "scheduleKey": str(row.get("schedule_key")),
+                "reportType": str(row.get("report_type")),
                 "scheduledFor": due_slot,
             },
         )
         if result.get("ok"):
-            conn.execute(
-                """
-                UPDATE pipeline_schedules
-                SET last_enqueued_slot = ?,
-                    last_enqueued_at = ?,
-                    updated_at = ?
-                WHERE schedule_key = ?
-                """,
-                (due_slot, now_iso(), now_iso(), str(row["schedule_key"])),
+            store.update(
+                "pipeline_schedules",
+                {
+                    "last_enqueued_slot": due_slot,
+                    "last_enqueued_at": now_iso(),
+                    "updated_at": now_iso(),
+                },
+                query={"schedule_key": f"eq.{row.get('schedule_key')}"},
             )
-            enqueued.append({"scheduleKey": str(row["schedule_key"]), "requestId": result.get("requestId"), "dueSlot": due_slot})
+            enqueued.append({"scheduleKey": str(row.get("schedule_key")), "requestId": result.get("requestId"), "dueSlot": due_slot})
     return enqueued
 
 
-def claim_next_request(conn: sqlite3.Connection) -> sqlite3.Row | None:
-    row = conn.execute(
-        """
-        SELECT *
-        FROM pipeline_run_requests
-        WHERE status = 'requested'
-        ORDER BY requested_at ASC, id ASC
-        LIMIT 1
-        """
-    ).fetchone()
-    if row is None:
-        return None
-    conn.execute(
-        """
-        UPDATE pipeline_run_requests
-        SET status = 'claimed',
-            claimed_at = ?
-        WHERE id = ?
-          AND status = 'requested'
-        """,
-        (now_iso(), int(row["id"])),
+def claim_next_request(store: SupabaseStore) -> dict[str, Any] | None:
+    result = store.rpc("article_bot_claim_next_request")
+    return result if isinstance(result, dict) and result.get("id") is not None else None
+
+
+def get_request_by_id(store: SupabaseStore, request_id: int) -> dict[str, Any] | None:
+    rows = store.table("pipeline_run_requests", query={"select": "*", "id": f"eq.{request_id}", "limit": "1"})
+    return rows[0] if rows else None
+
+
+def create_collection_run(store: SupabaseStore, request: dict[str, Any]) -> int:
+    result = store.rpc("article_bot_create_collection_run", {"p_request_id": int(request["id"])})
+    return int(result)
+
+
+def update_step(store: SupabaseStore, run_id: int, stage_key: str, status: str) -> None:
+    store.update(
+        "pipeline_run_steps",
+        {"status": status, "updated_at": now_iso()},
+        query={"run_id": f"eq.{run_id}", "stage_key": f"eq.{stage_key}"},
     )
-    conn.commit()
-    return conn.execute("SELECT * FROM pipeline_run_requests WHERE id = ?", (int(row["id"]),)).fetchone()
 
 
-def create_collection_run(conn: sqlite3.Connection, request: sqlite3.Row) -> int:
-    payload = json.loads(str(request["payload_json"] or "{}"))
-    cadence = str(payload.get("cadence") or "daily")
-    source_scope = ",".join(payload.get("sources") or DEFAULT_TARGET_SOURCES)
+def add_artifact(store: SupabaseStore, run_id: int, artifact_type: str, content: str, file_path: str | None = None) -> None:
+    store.insert(
+        "artifacts",
+        {
+            "run_id": run_id,
+            "artifact_type": artifact_type,
+            "content": content,
+            "file_path": file_path,
+            "created_at": now_iso(),
+        },
+    )
+
+
+def add_article_evaluation(
+    store: SupabaseStore,
+    *,
+    run_id: int,
+    article_id: str,
+    url: str,
+    title: str,
+    source: str,
+    score: float,
+    criteria: dict[str, float],
+    notes: str,
+) -> None:
+    store.insert(
+        "article_evaluations",
+        {
+            "run_id": run_id,
+            "article_id": article_id,
+            "url": url,
+            "title": title,
+            "source": source,
+            "score": score,
+            "criteria_json": criteria,
+            "notes": notes,
+            "created_at": now_iso(),
+        },
+    )
+
+
+def finish_request(store: SupabaseStore, request_id: int, run_id: int, status: str, *, error_text: str | None = None) -> None:
     timestamp = now_iso()
-    conn.execute(
-        """
-        INSERT INTO collection_runs (
-          request_id, cadence, run_date, status, source_scope, executor, started_at, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """,
-        (int(request["id"]), cadence, run_date(), "running", source_scope, str(request["executor"] or "local"), timestamp, timestamp),
-    )
-    run_id = int(conn.execute("SELECT last_insert_rowid()").fetchone()[0])
-    conn.execute("UPDATE pipeline_run_requests SET collection_run_id = ?, status = 'running', started_at = ? WHERE id = ?", (run_id, timestamp, int(request["id"])))
-    for index, stage in enumerate(PIPELINE_STAGES):
-        conn.execute(
-            """
-            INSERT INTO pipeline_run_steps (
-              run_id, stage_key, stage_label, stage_detail, stage_order, status, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                run_id,
-                stage["stage_key"],
-                stage["stage_label"],
-                stage["stage_detail"],
-                index,
-                "queued",
-                timestamp,
-            ),
-        )
-    conn.commit()
-    return run_id
-
-
-def update_step(conn: sqlite3.Connection, run_id: int, stage_key: str, status: str) -> None:
-    conn.execute(
-        "UPDATE pipeline_run_steps SET status = ?, updated_at = ? WHERE run_id = ? AND stage_key = ?",
-        (status, now_iso(), run_id, stage_key),
-    )
-    conn.commit()
-
-
-def add_artifact(conn: sqlite3.Connection, run_id: int, artifact_type: str, content: str, file_path: str | None = None) -> None:
-    conn.execute(
-        "INSERT INTO artifacts (run_id, artifact_type, content, file_path, created_at) VALUES (?, ?, ?, ?, ?)",
-        (run_id, artifact_type, content, file_path, now_iso()),
-    )
-    conn.commit()
-
-
-def finish_request(conn: sqlite3.Connection, request_id: int, run_id: int, status: str, *, error_text: str | None = None) -> None:
-    timestamp = now_iso()
-    conn.execute(
-        "UPDATE collection_runs SET status = ?, finished_at = ?, notes = COALESCE(?, notes) WHERE id = ?",
-        (status, timestamp, error_text, run_id),
-    )
-    conn.execute(
-        """
-        UPDATE pipeline_run_requests
-        SET status = ?,
-            finished_at = ?,
-            error_text = COALESCE(?, error_text)
-        WHERE id = ?
-        """,
-        (status, timestamp, error_text, request_id),
-    )
-    conn.commit()
+    run_payload: dict[str, Any] = {"status": status, "finished_at": timestamp}
+    if error_text:
+        run_payload["notes"] = error_text
+    store.update("collection_runs", run_payload, query={"id": f"eq.{run_id}"})
+    payload: dict[str, Any] = {"status": status, "finished_at": timestamp}
+    if error_text:
+        payload["error_text"] = error_text
+    store.update("pipeline_run_requests", payload, query={"id": f"eq.{request_id}"})

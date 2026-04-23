@@ -7,7 +7,7 @@ import argparse
 import json
 import traceback
 
-from article_bot_store import create_collection_run, finish_request, get_connection
+from article_bot_store import create_collection_run, finish_request, get_connection, get_request_by_id
 from run_article_research_graph import run_article_research_graph
 
 
@@ -17,7 +17,7 @@ def main() -> int:
     args = parser.parse_args()
 
     conn = get_connection()
-    request = conn.execute("SELECT * FROM pipeline_run_requests WHERE id = ? LIMIT 1", (args.request_id,)).fetchone()
+    request = get_request_by_id(conn, args.request_id)
     if request is None:
         print(json.dumps({"ok": False, "error": "request-not-found", "requestId": args.request_id}))
         return 1

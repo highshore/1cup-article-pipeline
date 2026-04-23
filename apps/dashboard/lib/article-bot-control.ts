@@ -71,17 +71,17 @@ async function postControl<T extends ControlResponse>(
 async function withLocalFallback<T extends ControlResponse>(
   path: string,
   payload: Record<string, unknown>,
-  fallback: () => T,
+  fallback: () => Promise<T>,
 ): Promise<T> {
   if (!CONTROL_BASE_URL) {
-    return fallback();
+    return await fallback();
   }
 
   try {
     return await postControl<T>(path, payload);
   } catch (error) {
     console.error("article-bot control request failed; using local fallback", error);
-    return fallback();
+    return await fallback();
   }
 }
 
