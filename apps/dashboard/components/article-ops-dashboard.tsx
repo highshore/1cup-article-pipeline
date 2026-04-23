@@ -160,6 +160,7 @@ export function ArticleOpsDashboard({
 
       <div className="mt-6 grid gap-6 xl:grid-cols-[1.65fr_0.95fr]">
         <aside className="order-1 space-y-5 xl:order-none xl:col-start-2 xl:row-start-2">
+          <h2 className="text-xl font-semibold tracking-[-0.04em]">Settings</h2>
           <section className={panelClass}>
             <div className="flex items-center gap-3">
               <div className="rounded-2xl bg-moss/10 p-2 text-moss">
@@ -326,7 +327,7 @@ export function ArticleOpsDashboard({
         </section>
 
         <section className="order-3 space-y-5 xl:order-none xl:col-start-1 xl:row-start-2">
-          <h2 className="text-xl font-semibold tracking-[-0.04em]">Article stack</h2>
+          <h2 className="text-xl font-semibold tracking-[-0.04em]">Article Candidates</h2>
           <ArticleResultsFeed filters={data.filters} initialItems={data.items} totalCount={data.totalItems} />
         </section>
       </div>
@@ -348,7 +349,7 @@ function ScheduleForm({ schedule }: { schedule: ArticleDashboardData["pipelineSc
     <AsyncForm
       action="/api/pipeline-schedules"
       checkboxGroupName="weekdays"
-      className="space-y-7"
+      className="space-y-10"
     >
       <input name="scheduleKey" type="hidden" value="daily_kakao_report" />
       <div className="space-y-3">
