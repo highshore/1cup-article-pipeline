@@ -151,6 +151,8 @@ type RequestRow = {
 
 const BOT_DB_PATH = process.env.ARTICLE_BOT_DB_PATH
   ? path.resolve(process.env.ARTICLE_BOT_DB_PATH)
+  : process.env.VERCEL
+    ? "/tmp/article-dashboard.sqlite"
   : path.resolve(process.cwd(), "..", "research-bot", "data", "article-dashboard.sqlite");
 
 const PAGE_SIZE = 10;

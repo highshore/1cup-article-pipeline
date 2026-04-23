@@ -14,8 +14,8 @@ const links = [
 ];
 
 const NavShell = styled.div`
-  --nav-control-height: 54px;
-  --nav-item-height: 40px;
+  --nav-control-height: 46px;
+  --nav-item-height: 34px;
 
   display: grid;
   align-items: center;
@@ -40,10 +40,10 @@ const BrandLink = styled(Link)`
   min-height: var(--nav-control-height);
   align-items: center;
   justify-content: center;
-  border-radius: 18px;
+  border-radius: 15px;
   background: #020617;
-  padding: 12px 18px;
-  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.14);
+  padding: 9px 14px;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
 `;
 
 const CenterWrap = styled.div`
@@ -87,7 +87,7 @@ const SignOutButton = styled.button`
   background: rgba(255, 255, 255, 0.84);
   padding: 6px;
   color: #475569;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   font-weight: 700;
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
   backdrop-filter: blur(14px);
@@ -103,7 +103,7 @@ const SignOutButton = styled.button`
     align-items: center;
     justify-content: center;
     border-radius: 999px;
-    padding: 8px 16px;
+    padding: 7px 12px;
   }
 
   &:hover {
@@ -131,7 +131,7 @@ export function AppNav() {
             width={156}
             height={30}
             priority
-            style={{ width: "auto", height: "30px" }}
+            style={{ width: "auto", height: "24px" }}
           />
         </BrandLink>
       </BrandWrap>
@@ -145,7 +145,7 @@ export function AppNav() {
               <Link
                 key={link.href}
                 className={[
-                  "inline-flex min-h-10 items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition",
+                  "inline-flex min-h-[34px] items-center gap-2 rounded-full px-3.5 py-1.5 text-sm font-semibold transition",
                   active ? "bg-ink text-white shadow-sm" : "bg-transparent text-dusk hover:bg-slate-50 hover:text-ink",
                 ].join(" ")}
                 href={link.href}
