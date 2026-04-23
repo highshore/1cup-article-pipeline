@@ -29,6 +29,9 @@ const weekdayOptions = [
   { value: 6, label: "Sun" },
 ] as const;
 
+const panelClass = "rounded-[26px] border border-slate-200/75 bg-white/80 p-6 shadow-[0_12px_30px_rgba(15,23,42,0.05)] backdrop-blur";
+const sectionHeadingClass = "text-lg font-semibold tracking-[-0.02em]";
+
 function statusClasses(status: string) {
   if (status === "requested" || status === "queued" || status === "cancelling") return "border-amber-200 bg-amber-50 text-amber-800";
   if (status === "claimed" || status === "submitted" || status === "running") return "border-sky-200 bg-sky-50 text-sky-800";
@@ -115,32 +118,31 @@ export function ArticleOpsDashboard({
   const dailySchedule = data.pipelineSchedules.find((schedule) => schedule.scheduleKey === "daily_kakao_report") ?? null;
 
   return (
-    <main className="mx-auto min-h-screen max-w-[1520px] px-3 py-4 text-ink sm:px-4 sm:py-6 md:px-6 lg:px-8 lg:py-8">
+    <main className="mx-auto min-h-screen max-w-[1520px] px-4 py-5 text-ink sm:px-5 sm:py-6 md:px-6 lg:px-8 lg:py-8">
       <DashboardAutoRefresh enabled={data.isPipelineRunning} />
-      <div className="mb-5">
+      <div className="mb-6">
         <AppNav />
       </div>
 
-      <section className="rounded-[28px] border border-slate-200/75 bg-white/80 p-6 shadow-panel backdrop-blur sm:p-8">
-        <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
-          <div className="max-w-3xl space-y-3">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-ember">Article research bot</p>
-            <h1 className="text-[2.4rem] font-semibold leading-tight tracking-[-0.04em] text-ink sm:text-5xl">
-              WSJ / FT crawler, evaluation, processing, and Kakao delivery.
+      <section className="rounded-[28px] border border-slate-200/75 bg-white/80 p-7 shadow-panel backdrop-blur sm:p-8">
+        <div className="flex flex-col gap-8 xl:flex-row xl:items-start xl:justify-between">
+          <div className="max-w-3xl space-y-4">
+            <h1 className="text-[2.5rem] font-semibold leading-tight tracking-[-0.05em] text-ink sm:text-[3.2rem]">
+              Article Pipeline
             </h1>
-            <p className="max-w-2xl text-sm leading-7 text-ink/70 sm:text-base">
-              This mirrors the research-pipeline operations layout: tune target criteria and sources, schedule briefs,
-              track the producer flow, and review the article stack that lands in the database.
+            <p className="max-w-2xl text-sm leading-7 text-ink/70 sm:text-[15px]">
+              Pipeline steps: crawl WSJ and FT, evaluate relevance and translation quality, process approved articles
+              and media, save the stack to the database, and deliver scheduled Kakao updates.
             </p>
           </div>
           <LatestCollectionCard latestCollectedAt={data.latestCollectedAt} todayLabel={todayLabel} />
         </div>
       </section>
 
-      <section className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <section className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
         {data.metrics.map((metric) => (
-          <div key={metric.label} className="relative min-h-[148px] overflow-hidden rounded-[24px] border border-slate-200/75 bg-white/78 p-5 shadow-[0_12px_30px_rgba(15,23,42,0.05)] backdrop-blur">
-            <div className="relative z-10 flex h-full flex-col justify-between gap-5">
+          <div key={metric.label} className="relative min-h-[152px] overflow-hidden rounded-[24px] border border-slate-200/75 bg-white/78 p-6 shadow-[0_12px_30px_rgba(15,23,42,0.05)] backdrop-blur">
+            <div className="relative z-10 flex h-full flex-col justify-between gap-6">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium text-ink/62">{metric.label}</span>
                 <div className="rounded-2xl bg-ember/10 p-2 text-ember">
@@ -157,13 +159,13 @@ export function ArticleOpsDashboard({
       </section>
 
       <div className="mt-6 grid gap-6 xl:grid-cols-[1.65fr_0.95fr]">
-        <aside className="order-1 space-y-4 xl:order-none xl:col-start-2 xl:row-start-2">
-          <section className="rounded-[26px] border border-slate-200/75 bg-white/80 p-5 shadow-[0_12px_30px_rgba(15,23,42,0.05)] backdrop-blur">
+        <aside className="order-1 space-y-5 xl:order-none xl:col-start-2 xl:row-start-2">
+          <section className={panelClass}>
             <div className="flex items-center gap-3">
               <div className="rounded-2xl bg-moss/10 p-2 text-moss">
                 <GlobeIcon className="h-5 w-5" />
               </div>
-              <h2 className="text-lg font-semibold">Target sources</h2>
+              <h2 className={sectionHeadingClass}>Target sources</h2>
             </div>
 
             <div className="mt-5 flex flex-wrap gap-2">
@@ -192,12 +194,12 @@ export function ArticleOpsDashboard({
             </AsyncForm>
           </section>
 
-          <section className="rounded-[26px] border border-slate-200/75 bg-white/80 p-5 shadow-[0_12px_30px_rgba(15,23,42,0.05)] backdrop-blur">
+          <section className={panelClass}>
             <div className="flex items-center gap-3">
               <div className="rounded-2xl bg-dusk/10 p-2 text-dusk">
                 <ClockIcon className="h-5 w-5" />
               </div>
-              <h2 className="text-lg font-semibold">Schedules</h2>
+              <h2 className={sectionHeadingClass}>Schedules</h2>
             </div>
 
             <div className="mt-5 space-y-5">
@@ -205,13 +207,13 @@ export function ArticleOpsDashboard({
             </div>
           </section>
 
-          <section className="rounded-[26px] border border-slate-200/75 bg-white/80 p-5 shadow-[0_12px_30px_rgba(15,23,42,0.05)] backdrop-blur">
+          <section className={panelClass}>
             <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
               <div className="flex items-center gap-3">
                 <div className="rounded-2xl bg-ember/10 p-2 text-ember">
                   <BoltIcon className="h-5 w-5" />
                 </div>
-                <h2 className="text-lg font-semibold">Pipeline flow</h2>
+                <h2 className={sectionHeadingClass}>Pipeline flow</h2>
               </div>
               <div className="flex flex-wrap items-center gap-2 sm:justify-self-end">
                 {data.isPipelineRunning ? (
@@ -267,12 +269,12 @@ export function ArticleOpsDashboard({
             </div>
           </section>
 
-          <section className="rounded-[26px] border border-slate-200/75 bg-white/80 p-5 shadow-[0_12px_30px_rgba(15,23,42,0.05)] backdrop-blur">
+          <section className={panelClass}>
             <div className="flex items-center gap-3">
               <div className="rounded-2xl bg-ember/10 p-2 text-ember">
                 <ClockIcon className="h-5 w-5" />
               </div>
-              <h2 className="text-lg font-semibold">Run history</h2>
+              <h2 className={sectionHeadingClass}>Run history</h2>
             </div>
 
             <div className="mt-5 space-y-3">
@@ -295,13 +297,13 @@ export function ArticleOpsDashboard({
           </section>
         </aside>
 
-        <section className="order-2 rounded-[26px] border border-slate-200/75 bg-white/80 p-5 shadow-[0_12px_30px_rgba(15,23,42,0.05)] backdrop-blur sm:p-6 xl:order-none xl:col-span-2 xl:row-start-1">
-          <div className="flex flex-col gap-4">
+        <section className={`order-2 xl:order-none xl:col-span-2 xl:row-start-1 ${panelClass}`}>
+          <div className="flex flex-col gap-5">
             <div className="flex items-center gap-3">
               <div className="rounded-2xl bg-ember/10 p-2 text-ember">
                 <QueueIcon className="h-5 w-5" />
               </div>
-              <h2 className="text-lg font-semibold">Filters</h2>
+              <h2 className={sectionHeadingClass}>Filters</h2>
             </div>
 
             <AsyncForm className="grid gap-4 lg:grid-cols-[1.3fr_repeat(4,minmax(0,1fr))_auto]" method="get">
@@ -324,7 +326,7 @@ export function ArticleOpsDashboard({
           </div>
         </section>
 
-        <section className="order-3 space-y-4 xl:order-none xl:col-start-1 xl:row-start-2">
+        <section className="order-3 space-y-5 xl:order-none xl:col-start-1 xl:row-start-2">
           <h2 className="text-xl font-semibold tracking-[-0.04em]">Article stack</h2>
           <ArticleResultsFeed filters={data.filters} initialItems={data.items} totalCount={data.totalItems} />
         </section>
