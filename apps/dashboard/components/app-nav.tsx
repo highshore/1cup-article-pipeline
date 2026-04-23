@@ -14,12 +14,13 @@ const links = [
 ];
 
 const NavShell = styled.div`
-  --nav-control-height: 46px;
-  --nav-item-height: 34px;
+  --nav-control-height: 58px;
+  --nav-item-height: 42px;
 
   display: flex;
   align-items: center;
   justify-content: flex-start;
+  width: 100%;
 `;
 
 const BrandLink = styled(Link)`
@@ -29,25 +30,41 @@ const BrandLink = styled(Link)`
   justify-content: center;
   border-radius: 999px;
   background: #020617;
-  padding: 5px 12px;
+  padding: 7px 16px;
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
 `;
 
 const NavTrack = styled.nav`
-  display: inline-flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   min-height: var(--nav-control-height);
-  width: fit-content;
-  max-width: 100%;
-  flex-wrap: wrap;
+  width: 100%;
   align-items: center;
-  justify-content: flex-start;
-  gap: 4px;
+  gap: 8px;
   border: 1px solid rgba(226, 232, 240, 0.8);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.84);
-  padding: 6px;
+  padding: 8px;
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
   backdrop-filter: blur(14px);
+
+  @media (max-width: 820px) {
+    display: flex;
+    flex-wrap: wrap;
+  }
+`;
+
+const NavLinks = styled.div`
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+`;
+
+const RightActions = styled.div`
+  display: flex;
+  justify-content: flex-end;
 `;
 
 const SignOutButton = styled.button`
@@ -59,9 +76,9 @@ const SignOutButton = styled.button`
   border: 1px solid rgba(220, 38, 38, 0.88);
   border-radius: 999px;
   background: #dc2626;
-  padding: 6px 12px;
+  padding: 8px 16px;
   color: #ffffff;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 700;
   box-shadow: 0 8px 20px rgba(220, 38, 38, 0.18);
   transition:
@@ -89,34 +106,38 @@ export function AppNav() {
             width={156}
             height={30}
             priority
-            style={{ width: "auto", height: "20px" }}
+            style={{ width: "auto", height: "24px" }}
           />
         </BrandLink>
 
-        {links.map((link) => {
-          const active = pathname === link.href || (link.href !== "/" && pathname.startsWith(link.href));
-          const Icon = link.icon;
-          return (
-            <Link
-              key={link.href}
-              className={[
-                "inline-flex min-h-[34px] items-center gap-2 rounded-full px-3.5 py-1.5 text-sm font-semibold transition",
-                active ? "bg-ink text-white shadow-sm" : "bg-transparent text-dusk hover:bg-slate-50 hover:text-ink",
-              ].join(" ")}
-              href={link.href}
-            >
-              <Icon className="h-4 w-4" />
-              {link.label}
-            </Link>
-          );
-        })}
+        <NavLinks>
+          {links.map((link) => {
+            const active = pathname === link.href || (link.href !== "/" && pathname.startsWith(link.href));
+            const Icon = link.icon;
+            return (
+              <Link
+                key={link.href}
+                className={[
+                  "inline-flex min-h-[42px] items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition",
+                  active ? "bg-ink text-white shadow-sm" : "bg-transparent text-dusk hover:bg-slate-50 hover:text-ink",
+                ].join(" ")}
+                href={link.href}
+              >
+                <Icon className="h-4 w-4" />
+                {link.label}
+              </Link>
+            );
+          })}
+        </NavLinks>
 
-        <form action="/auth/signout" method="post">
-          <SignOutButton type="submit">
-            <ArrowRightOnRectangleIcon className="h-4 w-4" />
-            Sign out
-          </SignOutButton>
-        </form>
+        <RightActions>
+          <form action="/auth/signout" method="post">
+            <SignOutButton type="submit">
+              <ArrowRightOnRectangleIcon className="h-4 w-4" />
+              Sign out
+            </SignOutButton>
+          </form>
+        </RightActions>
       </NavTrack>
     </NavShell>
   );
