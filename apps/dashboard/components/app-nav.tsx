@@ -25,9 +25,11 @@ const NavShell = styled.div`
 
 const BrandLink = styled(Link)`
   display: inline-flex;
+  width: fit-content;
   min-height: var(--nav-item-height);
   align-items: center;
   justify-content: center;
+  justify-self: start;
   border-radius: 999px;
   background: #020617;
   padding: 7px 16px;
@@ -59,12 +61,14 @@ const NavLinks = styled.div`
   flex-wrap: wrap;
   align-items: center;
   justify-content: center;
+  justify-self: center;
   gap: 4px;
 `;
 
 const RightActions = styled.div`
   display: flex;
   justify-content: flex-end;
+  justify-self: end;
 `;
 
 const SignOutButton = styled.button`
@@ -106,7 +110,7 @@ export function AppNav() {
             width={156}
             height={30}
             priority
-            style={{ width: "auto", height: "24px" }}
+            style={{ display: "block", width: "125px", height: "auto" }}
           />
         </BrandLink>
 
