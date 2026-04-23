@@ -363,22 +363,36 @@ function ArticleBody({
     article.processed.paragraphsKo.length > 0 &&
     article.processed.paragraphsKo.length === paragraphBlocks.length;
 
-  let paragraphIndex = 0;
+  const paragraphTranslationsByBlockKey = paragraphTranslationsAligned
+    ? article.content.reduce<{ paragraphIndex: number; translations: Record<string, string> }>(
+        (state, block) => {
+          if (block.type !== "paragraph") {
+            return state;
+          }
+
+          return {
+            paragraphIndex: state.paragraphIndex + 1,
+            translations: {
+              ...state.translations,
+              [`${block.type}-${block.order}`]: article.processed.paragraphsKo[state.paragraphIndex] ?? "",
+            },
+          };
+        },
+        { paragraphIndex: 0, translations: {} },
+      ).translations
+    : {};
 
   return (
     <div className="w-full max-w-5xl space-y-5">
       {article.content.map((block) => {
         const translation =
-          block.type === "paragraph" && paragraphTranslationsAligned ? article.processed.paragraphsKo[paragraphIndex] ?? null : null;
+          block.type === "paragraph" && paragraphTranslationsAligned ? paragraphTranslationsByBlockKey[`${block.type}-${block.order}`] ?? null : null;
         const element = (
           <ArticleFlowBlock
             block={block}
             paragraphTranslation={translation}
           />
         );
-        if (block.type === "paragraph") {
-          paragraphIndex += 1;
-        }
         return <div key={`${article.articleId}-${block.type}-${block.order}`}>{element}</div>;
       })}
 

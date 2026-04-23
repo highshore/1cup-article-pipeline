@@ -107,6 +107,13 @@ export function ArticleOpsDashboard({
         : "Pipeline running"
     : "Run pipeline";
   const dailySchedule = data.pipelineSchedules.find((schedule) => schedule.scheduleKey === "daily_kakao_report") ?? null;
+  const articleFeedKey = [
+    data.totalItems,
+    data.items.map((item) => item.articleId).join("|"),
+    Object.entries(data.filters)
+      .map(([key, value]) => `${key}:${value}`)
+      .join("|"),
+  ].join("::");
 
   return (
     <main className="mx-auto min-h-screen max-w-[1520px] px-4 py-5 text-ink sm:px-5 sm:py-6 md:px-6 lg:px-8 lg:py-8">
@@ -319,7 +326,7 @@ export function ArticleOpsDashboard({
 
         <section className="order-3 space-y-5 xl:order-none xl:col-start-1 xl:row-start-2">
           <h2 className="text-xl font-semibold tracking-[-0.04em]">Article Candidates</h2>
-          <ArticleResultsFeed filters={data.filters} initialItems={data.items} totalCount={data.totalItems} />
+          <ArticleResultsFeed key={articleFeedKey} filters={data.filters} initialItems={data.items} totalCount={data.totalItems} />
         </section>
       </div>
     </main>

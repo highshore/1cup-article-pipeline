@@ -339,13 +339,6 @@ export function ArticleResultsFeed({
   const apiUrl = useMemo(() => buildApiUrl(filters, items.length, PAGE_SIZE), [filters, items.length]);
 
   useEffect(() => {
-    setItems(initialItems);
-    setHasMore(initialItems.length < totalCount);
-    setLoadError("");
-    setIsLoading(false);
-  }, [initialItems, totalCount]);
-
-  useEffect(() => {
     const sentinel = sentinelRef.current;
     if (!sentinel || !hasMore || isLoading) {
       return;

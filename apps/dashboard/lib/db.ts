@@ -3,7 +3,6 @@ import path from "node:path";
 import Database from "better-sqlite3";
 
 declare global {
-  // eslint-disable-next-line no-var
   var __dashboardDb: Database.Database | undefined;
 }
 
