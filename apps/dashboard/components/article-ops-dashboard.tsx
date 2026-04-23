@@ -349,7 +349,7 @@ function ScheduleForm({ schedule }: { schedule: ArticleDashboardData["pipelineSc
     <AsyncForm
       action="/api/pipeline-schedules"
       checkboxGroupName="weekdays"
-      className="space-y-10"
+      className="space-y-0"
     >
       <input name="scheduleKey" type="hidden" value="daily_kakao_report" />
       <div className="space-y-3">
@@ -365,7 +365,7 @@ function ScheduleForm({ schedule }: { schedule: ArticleDashboardData["pipelineSc
           ))}
         </div>
       </div>
-      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+      <div className="mt-10 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
         <label className="grid flex-1 gap-2 text-sm text-ink/70">
           <span className="font-semibold text-ink">Time</span>
           <input className="min-h-11 rounded-2xl border border-slate-200 bg-white px-4 text-sm outline-none" defaultValue={schedule?.timeOfDay ?? "09:00"} name="timeOfDay" type="time" />
