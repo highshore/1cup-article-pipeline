@@ -17,22 +17,9 @@ const NavShell = styled.div`
   --nav-control-height: 46px;
   --nav-item-height: 34px;
 
-  display: grid;
-  align-items: center;
-  gap: 12px;
-
-  @media (min-width: 1024px) {
-    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  }
-`;
-
-const BrandWrap = styled.div`
   display: flex;
-  justify-content: center;
-
-  @media (min-width: 1024px) {
-    justify-content: flex-start;
-  }
+  align-items: center;
+  justify-content: flex-start;
 `;
 
 const BrandLink = styled(Link)`
@@ -46,11 +33,6 @@ const BrandLink = styled(Link)`
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
 `;
 
-const CenterWrap = styled.div`
-  display: flex;
-  justify-content: center;
-`;
-
 const NavTrack = styled.nav`
   display: inline-flex;
   min-height: var(--nav-control-height);
@@ -58,7 +40,7 @@ const NavTrack = styled.nav`
   max-width: 100%;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 4px;
   border: 1px solid rgba(226, 232, 240, 0.8);
   border-radius: 999px;
@@ -66,15 +48,6 @@ const NavTrack = styled.nav`
   padding: 6px;
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
   backdrop-filter: blur(14px);
-`;
-
-const RightWrap = styled.div`
-  display: flex;
-  justify-content: center;
-
-  @media (min-width: 1024px) {
-    justify-content: flex-end;
-  }
 `;
 
 const SignOutButton = styled.button`
@@ -108,7 +81,7 @@ export function AppNav() {
 
   return (
     <NavShell>
-      <BrandWrap>
+      <NavTrack>
         <BrandLink href="/">
           <Image
             src="/signin/1cup_logo_new_white.svg"
@@ -119,38 +92,32 @@ export function AppNav() {
             style={{ width: "auto", height: "20px" }}
           />
         </BrandLink>
-      </BrandWrap>
 
-      <CenterWrap>
-        <NavTrack>
-          {links.map((link) => {
-            const active = pathname === link.href || (link.href !== "/" && pathname.startsWith(link.href));
-            const Icon = link.icon;
-            return (
-              <Link
-                key={link.href}
-                className={[
-                  "inline-flex min-h-[34px] items-center gap-2 rounded-full px-3.5 py-1.5 text-sm font-semibold transition",
-                  active ? "bg-ink text-white shadow-sm" : "bg-transparent text-dusk hover:bg-slate-50 hover:text-ink",
-                ].join(" ")}
-                href={link.href}
-              >
-                <Icon className="h-4 w-4" />
-                {link.label}
-              </Link>
-            );
-          })}
-        </NavTrack>
-      </CenterWrap>
+        {links.map((link) => {
+          const active = pathname === link.href || (link.href !== "/" && pathname.startsWith(link.href));
+          const Icon = link.icon;
+          return (
+            <Link
+              key={link.href}
+              className={[
+                "inline-flex min-h-[34px] items-center gap-2 rounded-full px-3.5 py-1.5 text-sm font-semibold transition",
+                active ? "bg-ink text-white shadow-sm" : "bg-transparent text-dusk hover:bg-slate-50 hover:text-ink",
+              ].join(" ")}
+              href={link.href}
+            >
+              <Icon className="h-4 w-4" />
+              {link.label}
+            </Link>
+          );
+        })}
 
-      <RightWrap>
         <form action="/auth/signout" method="post">
           <SignOutButton type="submit">
             <ArrowRightOnRectangleIcon className="h-4 w-4" />
             Sign out
           </SignOutButton>
         </form>
-      </RightWrap>
+      </NavTrack>
     </NavShell>
   );
 }
