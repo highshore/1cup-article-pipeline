@@ -79,6 +79,16 @@ export function ShieldIcon({ className = "h-4 w-4" }: IconProps) {
   );
 }
 
+export function ArrowRightOnRectangleIcon({ className = "h-4 w-4" }: IconProps) {
+  return (
+    <BaseIcon className={className}>
+      <path d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6A2.25 2.25 0 0 0 5.25 5.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15" />
+      <path d="M12 8.25 15.75 12 12 15.75" />
+      <path d="M15.75 12H21" />
+    </BaseIcon>
+  );
+}
+
 export function PlusIcon({ className = "h-4 w-4" }: IconProps) {
   return (
     <BaseIcon className={className}>

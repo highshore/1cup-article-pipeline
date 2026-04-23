@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import styled from "styled-components";
 
-import { BoltIcon, HomeIcon, ShieldIcon } from "@/components/icons";
+import { ArrowRightOnRectangleIcon, BoltIcon, HomeIcon, ShieldIcon } from "@/components/icons";
 
 const links = [
   { href: "/", label: "Articles", icon: HomeIcon },
@@ -37,12 +37,12 @@ const BrandWrap = styled.div`
 
 const BrandLink = styled(Link)`
   display: inline-flex;
-  min-height: var(--nav-control-height);
+  min-height: var(--nav-item-height);
   align-items: center;
   justify-content: center;
-  border-radius: 15px;
+  border-radius: 999px;
   background: #020617;
-  padding: 9px 14px;
+  padding: 5px 12px;
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
 `;
 
@@ -79,42 +79,27 @@ const RightWrap = styled.div`
 
 const SignOutButton = styled.button`
   display: inline-flex;
-  min-height: var(--nav-control-height);
+  min-height: var(--nav-item-height);
   align-items: center;
   justify-content: center;
-  border: 1px solid rgba(226, 232, 240, 0.8);
+  gap: 7px;
+  border: 1px solid rgba(220, 38, 38, 0.88);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.84);
-  padding: 6px;
-  color: #475569;
+  background: #dc2626;
+  padding: 6px 12px;
+  color: #ffffff;
   font-size: 0.8125rem;
   font-weight: 700;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
-  backdrop-filter: blur(14px);
+  box-shadow: 0 8px 20px rgba(220, 38, 38, 0.18);
   transition:
     border-color 140ms ease,
-    color 140ms ease,
     background-color 140ms ease,
     box-shadow 140ms ease;
 
-  span {
-    display: inline-flex;
-    min-height: var(--nav-item-height);
-    align-items: center;
-    justify-content: center;
-    border-radius: 999px;
-    padding: 7px 12px;
-  }
-
   &:hover {
-    border-color: rgb(203 213 225);
-    background: #ffffff;
-    color: #0f172a;
-    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
-  }
-
-  &:hover span {
-    background: rgb(248 250 252);
+    border-color: #b91c1c;
+    background: #b91c1c;
+    box-shadow: 0 10px 24px rgba(220, 38, 38, 0.24);
   }
 `;
 
@@ -131,7 +116,7 @@ export function AppNav() {
             width={156}
             height={30}
             priority
-            style={{ width: "auto", height: "24px" }}
+            style={{ width: "auto", height: "20px" }}
           />
         </BrandLink>
       </BrandWrap>
@@ -161,7 +146,8 @@ export function AppNav() {
       <RightWrap>
         <form action="/auth/signout" method="post">
           <SignOutButton type="submit">
-            <span>Sign out</span>
+            <ArrowRightOnRectangleIcon className="h-4 w-4" />
+            Sign out
           </SignOutButton>
         </form>
       </RightWrap>
