@@ -111,10 +111,8 @@ export function ArticleOpsDashboard({
       : data.activePipelineRequest?.status === "cancelling"
         ? "Stop requested"
         : "Pipeline running"
-    : "Run WSJ / FT pipeline";
+    : "Run pipeline";
   const dailySchedule = data.pipelineSchedules.find((schedule) => schedule.scheduleKey === "daily_kakao_report") ?? null;
-  const weeklySchedule = data.pipelineSchedules.find((schedule) => schedule.scheduleKey === "weekly_kakao_report") ?? null;
-  const apiQuery = new URLSearchParams(Object.entries(data.filters).filter(([, value]) => value && value !== "all")).toString();
 
   return (
     <main className="mx-auto min-h-screen max-w-[1520px] px-3 py-4 text-ink sm:px-4 sm:py-6 md:px-6 lg:px-8 lg:py-8">
@@ -232,13 +230,11 @@ export function ArticleOpsDashboard({
               <div className="rounded-2xl bg-dusk/10 p-2 text-dusk">
                 <ClockIcon className="h-5 w-5" />
               </div>
-              <h2 className="text-lg font-semibold">Kakao schedules</h2>
+              <h2 className="text-lg font-semibold">Schedules</h2>
             </div>
 
             <div className="mt-5 space-y-5">
-              <ScheduleForm schedule={dailySchedule} scheduleKey="daily_kakao_report" title="Daily Kakao Brief" allowMultiple />
-              <div className="border-t border-slate-200/75" />
-              <ScheduleForm schedule={weeklySchedule} scheduleKey="weekly_kakao_report" title="Weekly Kakao Brief" />
+              <ScheduleForm schedule={dailySchedule} />
             </div>
           </section>
 
@@ -362,13 +358,7 @@ export function ArticleOpsDashboard({
         </section>
 
         <section className="order-3 space-y-4 xl:order-none xl:col-start-1 xl:row-start-2">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="text-xl font-semibold tracking-[-0.04em]">Article stack</h2>
-            <Link className="inline-flex items-center gap-2 rounded-full border border-slate-200/75 px-4 py-2 text-sm font-semibold text-ink/55 hover:bg-white/70" href={apiQuery ? `/api/article-items?${apiQuery}` : "/api/article-items"}>
-              <QueueIcon className="h-4 w-4" />
-              JSON
-            </Link>
-          </div>
+          <h2 className="text-xl font-semibold tracking-[-0.04em]">Article stack</h2>
           <ArticleResultsFeed filters={data.filters} initialItems={data.items} totalCount={data.totalItems} />
         </section>
       </div>
@@ -385,36 +375,24 @@ function FlowMiniMetric({ label, value }: { label: string; value: string }) {
   );
 }
 
-function ScheduleForm({
-  schedule,
-  scheduleKey,
-  title,
-  allowMultiple = false,
-}: {
-  schedule: ArticleDashboardData["pipelineSchedules"][number] | null;
-  scheduleKey: "daily_kakao_report" | "weekly_kakao_report";
-  title: string;
-  allowMultiple?: boolean;
-}) {
+function ScheduleForm({ schedule }: { schedule: ArticleDashboardData["pipelineSchedules"][number] | null }) {
   return (
     <AsyncForm
       action="/api/pipeline-schedules"
       checkboxGroupName="weekdays"
       className="space-y-4"
-      maxCheckedMessage="Weekly Kakao Brief can only use one weekday."
-      maxCheckedValues={allowMultiple ? undefined : 1}
     >
-      <input name="scheduleKey" type="hidden" value={scheduleKey} />
+      <input name="scheduleKey" type="hidden" value="daily_kakao_report" />
       <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="font-semibold">{title}</p>
-          <p className="mt-1 text-xs uppercase tracking-[0.16em] text-ink/45">{allowMultiple ? "multiple weekdays" : "single weekday"}</p>
+          <p className="font-semibold">Daily brief</p>
+          <p className="mt-1 text-xs uppercase tracking-[0.16em] text-ink/45">multiple weekdays</p>
         </div>
-        <span className="rounded-full bg-ember/10 px-3 py-1 text-xs font-semibold text-ember">{allowMultiple ? "Daily" : "Weekly"}</span>
+        <span className="rounded-full bg-ember/10 px-3 py-1 text-xs font-semibold text-ember">Daily</span>
       </div>
       <div className="grid grid-cols-7 gap-2">
         {weekdayOptions.map((weekday) => (
-          <label key={`${scheduleKey}-${weekday.value}`} className="cursor-pointer">
+          <label key={`daily-kakao-${weekday.value}`} className="cursor-pointer">
             <input className="peer sr-only" defaultChecked={schedule?.weekdays.includes(weekday.value) ?? false} name="weekdays" type="checkbox" value={String(weekday.value)} />
             <span className="inline-flex h-10 w-full items-center justify-center rounded-2xl border border-slate-200 bg-white/78 text-xs font-semibold text-ink/55 transition peer-checked:border-ink peer-checked:bg-ink peer-checked:text-white">
               {weekday.label}
