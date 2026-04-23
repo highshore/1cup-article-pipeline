@@ -160,39 +160,6 @@ export function ArticleOpsDashboard({
         <aside className="order-1 space-y-4 xl:order-none xl:col-start-2 xl:row-start-2">
           <section className="rounded-[26px] border border-slate-200/75 bg-white/80 p-5 shadow-[0_12px_30px_rgba(15,23,42,0.05)] backdrop-blur">
             <div className="flex items-center gap-3">
-              <div className="rounded-2xl bg-ember/10 p-2 text-ember">
-                <QueueIcon className="h-5 w-5" />
-              </div>
-              <h2 className="text-lg font-semibold">Evaluation criteria</h2>
-            </div>
-
-            <div className="mt-5 flex flex-wrap gap-2">
-              {data.priorityTargets.map((target) => (
-                <AsyncForm key={target.id} action="/api/priority-targets" className="inline-flex">
-                  <input name="intent" type="hidden" value="delete" />
-                  <input name="targetId" type="hidden" value={String(target.id)} />
-                  <span className="inline-flex items-center gap-2 rounded-full border border-slate-200/75 bg-white/72 px-3 py-2 text-sm font-medium">
-                    <span>{target.label}</span>
-                    <button aria-label={`${target.label} delete`} className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-black/5 text-ink/55 hover:bg-black/10 hover:text-ink" type="submit">
-                      <XMarkIcon className="h-3.5 w-3.5" />
-                    </button>
-                  </span>
-                </AsyncForm>
-              ))}
-            </div>
-
-            <AsyncForm action="/api/priority-targets" className="mt-5 flex flex-col gap-2 sm:flex-row">
-              <input name="intent" type="hidden" value="add" />
-              <input className="min-h-11 flex-1 rounded-2xl border border-slate-200 bg-white px-4 text-sm outline-none" maxLength={60} name="label" placeholder="Add evaluation criterion" />
-              <button className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-ink px-4 text-sm font-semibold text-white hover:bg-ink/90" type="submit">
-                <PlusIcon className="h-4 w-4" />
-                Add
-              </button>
-            </AsyncForm>
-          </section>
-
-          <section className="rounded-[26px] border border-slate-200/75 bg-white/80 p-5 shadow-[0_12px_30px_rgba(15,23,42,0.05)] backdrop-blur">
-            <div className="flex items-center gap-3">
               <div className="rounded-2xl bg-moss/10 p-2 text-moss">
                 <GlobeIcon className="h-5 w-5" />
               </div>
@@ -385,10 +352,8 @@ function ScheduleForm({ schedule }: { schedule: ArticleDashboardData["pipelineSc
       <input name="scheduleKey" type="hidden" value="daily_kakao_report" />
       <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="font-semibold">Daily brief</p>
-          <p className="mt-1 text-xs uppercase tracking-[0.16em] text-ink/45">multiple weekdays</p>
+          <p className="font-semibold">Select weekdays</p>
         </div>
-        <span className="rounded-full bg-ember/10 px-3 py-1 text-xs font-semibold text-ember">Daily</span>
       </div>
       <div className="grid grid-cols-7 gap-2">
         {weekdayOptions.map((weekday) => (

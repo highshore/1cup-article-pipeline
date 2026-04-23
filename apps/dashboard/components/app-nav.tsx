@@ -110,7 +110,7 @@ export function AppNav() {
             width={156}
             height={30}
             priority
-            style={{ display: "block", width: "112px", height: "auto" }}
+            style={{ display: "block", width: "96px", height: "auto" }}
           />
         </BrandLink>
 
