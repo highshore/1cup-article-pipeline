@@ -78,3 +78,75 @@ export function ShieldIcon({ className = "h-4 w-4" }: IconProps) {
     </BaseIcon>
   );
 }
+
+export function PlusIcon({ className = "h-4 w-4" }: IconProps) {
+  return (
+    <BaseIcon className={className}>
+      <path d="M12 5.25v13.5" />
+      <path d="M5.25 12h13.5" />
+    </BaseIcon>
+  );
+}
+
+export function XMarkIcon({ className = "h-4 w-4" }: IconProps) {
+  return (
+    <BaseIcon className={className}>
+      <path d="m6.75 6.75 10.5 10.5" />
+      <path d="m17.25 6.75-10.5 10.5" />
+    </BaseIcon>
+  );
+}
+
+export function ClockIcon({ className = "h-4 w-4" }: IconProps) {
+  return (
+    <BaseIcon className={className}>
+      <circle cx="12" cy="12" r="8.25" />
+      <path d="M12 7.5V12l3 1.75" />
+    </BaseIcon>
+  );
+}
+
+export function PlayIcon({ className = "h-4 w-4" }: IconProps) {
+  return (
+    <BaseIcon className={className}>
+      <path d="M7.5 5.75v12.5L18 12 7.5 5.75Z" />
+    </BaseIcon>
+  );
+}
+
+export function StopIcon({ className = "h-4 w-4" }: IconProps) {
+  return (
+    <BaseIcon className={className}>
+      <rect height="10.5" rx="1.5" width="10.5" x="6.75" y="6.75" />
+    </BaseIcon>
+  );
+}
+
+export function GlobeIcon({ className = "h-4 w-4" }: IconProps) {
+  return (
+    <BaseIcon className={className}>
+      <circle cx="12" cy="12" r="8.25" />
+      <path d="M3.75 12h16.5" />
+      <path d="M12 3.75c2.1 2.18 3.15 4.93 3.15 8.25S14.1 18.07 12 20.25C9.9 18.07 8.85 15.32 8.85 12S9.9 5.93 12 3.75Z" />
+    </BaseIcon>
+  );
+}
+
+export function QueueIcon({ className = "h-4 w-4" }: IconProps) {
+  return (
+    <BaseIcon className={className}>
+      <path d="M5.25 6.75h13.5" />
+      <path d="M5.25 12h13.5" />
+      <path d="M5.25 17.25h8.25" />
+    </BaseIcon>
+  );
+}
+
+export function TrendingIcon({ className = "h-4 w-4" }: IconProps) {
+  return (
+    <BaseIcon className={className}>
+      <path d="m4.5 15 5.25-5.25 3.75 3.75 6-6" />
+      <path d="M15 7.5h4.5V12" />
+    </BaseIcon>
+  );
+}

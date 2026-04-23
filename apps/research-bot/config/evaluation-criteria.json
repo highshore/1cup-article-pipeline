@@ -1,0 +1,34 @@
+{
+  "criteria": [
+    {
+      "key": "c1_vocabulary_density",
+      "label": "C1 vocabulary density",
+      "weight": 0.22,
+      "description": "Prioritize articles likely to contain advanced but teachable vocabulary."
+    },
+    {
+      "key": "discussion_readiness",
+      "label": "Discussion readiness",
+      "weight": 0.22,
+      "description": "Prefer stories that naturally create classroom debate or speaking prompts."
+    },
+    {
+      "key": "business_relevance",
+      "label": "Business relevance",
+      "weight": 0.2,
+      "description": "Favor business, markets, technology, policy, and workplace relevance."
+    },
+    {
+      "key": "translation_quality_risk",
+      "label": "Korean translation quality",
+      "weight": 0.18,
+      "description": "Flag articles where idioms, dense quotes, or technical terms need careful Korean review."
+    },
+    {
+      "key": "media_usefulness",
+      "label": "Chart / media usefulness",
+      "weight": 0.18,
+      "description": "Value charts, photos, and sidecars that support comprehension or classroom use."
+    }
+  ]
+}
