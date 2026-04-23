@@ -467,7 +467,12 @@ function safeJsonObject(value: unknown): Record<string, unknown> {
 }
 
 function isMissingRelation(error: SupabaseError | null): boolean {
-  return Boolean(error && (error.code === "42P01" || error.message?.includes("does not exist")));
+  if (!error) return false;
+  const message = (error.message ?? "").toLowerCase();
+  return error.code === "42P01"
+    || message.includes("could not find the table")
+    || message.includes("schema cache")
+    || (message.includes("relation") && message.includes("does not exist"));
 }
 
 function isUniqueViolation(error: SupabaseError | null): boolean {
