@@ -1,18 +1,261 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import styled from "styled-components";
 
 import { ArrowPathIcon, ClockIcon, NewspaperIcon, TrendingIcon } from "@/components/icons";
 import type { ArticleDashboardFilters, ArticleDashboardItem } from "@/lib/article-dashboard";
 
 const PAGE_SIZE = 10;
 
-function statusClasses(status: string) {
-  if (status === "pending") return "border-amber-200 bg-amber-50 text-amber-800";
-  if (status === "approved") return "border-emerald-200 bg-emerald-50 text-emerald-800";
-  if (status === "deferred") return "border-slate-200 bg-slate-100 text-slate-700";
-  if (status === "rejected") return "border-red-200 bg-red-50 text-red-700";
-  return "border-slate-200 bg-slate-100 text-slate-700";
+const FeedStack = styled.div`
+  display: grid;
+  gap: 16px;
+`;
+
+const ArticleLink = styled.a`
+  display: block;
+  border: 1px solid rgba(226, 232, 240, 0.75);
+  border-radius: 26px;
+  background: rgba(255, 255, 255, 0.8);
+  padding: 20px;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.05);
+  backdrop-filter: blur(14px);
+  transition:
+    transform 140ms ease,
+    border-color 140ms ease,
+    background-color 140ms ease;
+
+  &:hover {
+    transform: translateY(-2px);
+    border-color: rgba(217, 119, 6, 0.35);
+    background: rgba(255, 255, 255, 0.9);
+  }
+`;
+
+const ArticleBody = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+`;
+
+const ArticleHeader = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+
+  @media (min-width: 1024px) {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+`;
+
+const ArticleCopy = styled.div`
+  display: grid;
+  gap: 12px;
+`;
+
+const PillRow = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+`;
+
+const SourcePill = styled.span`
+  border-radius: 999px;
+  background: rgba(217, 119, 6, 0.1);
+  padding: 4px 12px;
+  color: #d97706;
+`;
+
+const PhasePill = styled.span`
+  border-radius: 999px;
+  background: rgba(22, 101, 52, 0.1);
+  padding: 4px 12px;
+  color: #166534;
+`;
+
+const statusTone = {
+  approved: {
+    border: "#a7f3d0",
+    background: "#ecfdf5",
+    color: "#065f46",
+  },
+  deferred: {
+    border: "#e2e8f0",
+    background: "#f1f5f9",
+    color: "#334155",
+  },
+  pending: {
+    border: "#fde68a",
+    background: "#fffbeb",
+    color: "#92400e",
+  },
+  rejected: {
+    border: "#fecaca",
+    background: "#fef2f2",
+    color: "#b91c1c",
+  },
+} as const;
+
+const StatusPill = styled.span<{ $status: string }>`
+  border: 1px solid ${({ $status }) => statusTone[$status as keyof typeof statusTone]?.border ?? "#e2e8f0"};
+  border-radius: 999px;
+  background: ${({ $status }) => statusTone[$status as keyof typeof statusTone]?.background ?? "#f1f5f9"};
+  padding: 4px 12px;
+  color: ${({ $status }) => statusTone[$status as keyof typeof statusTone]?.color ?? "#334155"};
+`;
+
+const ArticleTitle = styled.h3`
+  color: #0f172a;
+  font-family: var(--font-serif);
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.15;
+`;
+
+const ArticleSummary = styled.p`
+  display: -webkit-box;
+  margin-top: 8px;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  color: rgba(15, 23, 42, 0.7);
+  font-size: 0.875rem;
+  line-height: 1.75;
+`;
+
+const ArticleMeta = styled.div`
+  display: grid;
+  gap: 8px;
+  border: 1px solid rgba(226, 232, 240, 0.75);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.7);
+  padding: 12px 16px;
+  color: rgba(15, 23, 42, 0.65);
+  font-size: 0.875rem;
+
+  @media (min-width: 1024px) {
+    min-width: 224px;
+  }
+`;
+
+const MetaLine = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  svg {
+    width: 16px;
+    height: 16px;
+    color: #d97706;
+  }
+`;
+
+const TagRow = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+`;
+
+const TagPill = styled.span`
+  border-radius: 999px;
+  background: #f5f7fb;
+  padding: 4px 12px;
+  color: rgba(15, 23, 42, 0.7);
+  font-size: 0.875rem;
+  font-weight: 500;
+`;
+
+const EvaluationBox = styled.div`
+  border: 1px solid rgba(226, 232, 240, 0.7);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.72);
+  padding: 16px;
+`;
+
+const EvaluationLabel = styled.p`
+  color: rgba(15, 23, 42, 0.45);
+  font-size: 0.75rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+`;
+
+const EvaluationText = styled.p`
+  margin-top: 8px;
+  color: rgba(15, 23, 42, 0.75);
+  font-size: 0.875rem;
+  line-height: 1.75;
+`;
+
+const EmptyState = styled.div`
+  border: 1px solid rgba(226, 232, 240, 0.75);
+  border-radius: 26px;
+  background: rgba(255, 255, 255, 0.8);
+  padding: 32px;
+  text-align: center;
+  color: rgba(15, 23, 42, 0.6);
+  font-size: 0.875rem;
+  line-height: 1.75;
+`;
+
+const LoadError = styled.div`
+  border: 1px solid #fecaca;
+  border-radius: 16px;
+  background: #fef2f2;
+  padding: 12px 16px;
+  color: #b91c1c;
+  font-size: 0.875rem;
+`;
+
+const FeedStatusWrap = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 0;
+`;
+
+const LoadingPill = styled.div`
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(226, 232, 240, 0.75);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.8);
+  padding: 8px 16px;
+  color: rgba(15, 23, 42, 0.6);
+  font-size: 0.875rem;
+`;
+
+const EndMessage = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 0;
+  color: rgba(15, 23, 42, 0.55);
+  font-size: 0.875rem;
+`;
+
+const SpinIcon = styled(ArrowPathIcon)`
+  width: 16px;
+  height: 16px;
+  animation: spin 1s linear infinite;
+
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+`;
+
+function formatCrawledAt(value: string) {
+  return value.replace("T", " ").slice(0, 16);
 }
 
 function buildApiUrl(filters: ArticleDashboardFilters, offset: number, limit: number) {
@@ -30,56 +273,51 @@ function buildApiUrl(filters: ArticleDashboardFilters, offset: number, limit: nu
 
 function ArticleCard({ item }: { item: ArticleDashboardItem }) {
   return (
-    <a
-      className="block rounded-[26px] border border-slate-200/75 bg-white/80 p-5 shadow-[0_12px_30px_rgba(15,23,42,0.05)] backdrop-blur transition hover:-translate-y-0.5 hover:border-ember/35 hover:bg-white/90"
-      href={item.url}
-      rel="noreferrer"
-      target="_blank"
-    >
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-          <div className="space-y-3">
-            <div className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em]">
-              <span className="rounded-full bg-ember/10 px-3 py-1 text-ember">{item.source.toUpperCase()}</span>
-              <span className="rounded-full bg-moss/10 px-3 py-1 text-moss">{item.phase}</span>
-              <span className={`rounded-full border px-3 py-1 ${statusClasses(item.status)}`}>{item.status}</span>
-            </div>
+    <ArticleLink href={item.url} rel="noreferrer" target="_blank">
+      <ArticleBody>
+        <ArticleHeader>
+          <ArticleCopy>
+            <PillRow>
+              <SourcePill>{item.source.toUpperCase()}</SourcePill>
+              <PhasePill>{item.phase}</PhasePill>
+              <StatusPill $status={item.status}>{item.status}</StatusPill>
+            </PillRow>
             <div>
-              <h3 className="font-[family:var(--font-serif)] text-2xl font-semibold leading-tight text-ink">{item.title}</h3>
-              <p className="mt-2 line-clamp-3 text-sm leading-7 text-ink/70">{item.summary}</p>
+              <ArticleTitle>{item.title}</ArticleTitle>
+              <ArticleSummary>{item.summary}</ArticleSummary>
             </div>
-          </div>
+          </ArticleCopy>
 
-          <div className="grid gap-2 rounded-2xl border border-slate-200/75 bg-white/70 px-4 py-3 text-sm text-ink/65 lg:min-w-56">
-            <div className="flex items-center gap-2">
-              <ClockIcon className="h-4 w-4 text-ember" />
-              <span>{item.crawledAt.replace("T", " ").slice(0, 16)}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <TrendingIcon className="h-4 w-4 text-ember" />
+          <ArticleMeta>
+            <MetaLine>
+              <ClockIcon />
+              <span>{formatCrawledAt(item.crawledAt)}</span>
+            </MetaLine>
+            <MetaLine>
+              <TrendingIcon />
               <span>Fit score {item.score}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <NewspaperIcon className="h-4 w-4 text-ember" />
+            </MetaLine>
+            <MetaLine>
+              <NewspaperIcon />
               <span>{item.section || "frontpage"} / {item.mediaCount} media</span>
-            </div>
-          </div>
-        </div>
+            </MetaLine>
+          </ArticleMeta>
+        </ArticleHeader>
 
-        <div className="flex flex-wrap gap-2">
+        <TagRow>
           {item.tags.map((tag) => (
-            <span key={tag} className="rounded-full bg-shell px-3 py-1 text-sm font-medium text-ink/70">
+            <TagPill key={tag}>
               #{tag}
-            </span>
+            </TagPill>
           ))}
-        </div>
+        </TagRow>
 
-        <div className="rounded-2xl border border-slate-200/70 bg-white/72 p-4">
-          <p className="text-xs uppercase tracking-[0.2em] text-ink/45">Evaluation signals</p>
-          <p className="mt-2 text-sm leading-7 text-ink/75">{item.relevanceNotes}</p>
-        </div>
-      </div>
-    </a>
+        <EvaluationBox>
+          <EvaluationLabel>Evaluation signals</EvaluationLabel>
+          <EvaluationText>{item.relevanceNotes}</EvaluationText>
+        </EvaluationBox>
+      </ArticleBody>
+    </ArticleLink>
   );
 }
 
@@ -150,38 +388,38 @@ export function ArticleResultsFeed({
 
   if (items.length === 0) {
     return (
-      <div className="rounded-[26px] border border-slate-200/75 bg-white/80 p-8 text-center text-sm leading-7 text-ink/60">
+      <EmptyState>
         No article results match the current filters yet.
-      </div>
+      </EmptyState>
     );
   }
 
   return (
-    <div className="space-y-4">
+    <FeedStack>
       {items.map((item) => (
         <ArticleCard key={item.articleId} item={item} />
       ))}
 
-      {loadError ? <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{loadError}</div> : null}
+      {loadError ? <LoadError>{loadError}</LoadError> : null}
 
       {hasMore ? (
-        <div ref={sentinelRef} className="flex items-center justify-center py-2">
-          <div className="inline-flex items-center gap-2 rounded-full border border-slate-200/75 bg-white/80 px-4 py-2 text-sm text-ink/60">
+        <FeedStatusWrap ref={sentinelRef}>
+          <LoadingPill>
             {isLoading ? (
               <>
-                <ArrowPathIcon className="h-4 w-4 animate-spin" />
+                <SpinIcon />
                 Loading more
               </>
             ) : (
               `Loading 10 at a time (${items.length} / ${totalCount})`
             )}
-          </div>
-        </div>
+          </LoadingPill>
+        </FeedStatusWrap>
       ) : (
-        <div className="flex items-center justify-center py-2 text-sm text-ink/55">
+        <EndMessage>
           {`All article results loaded (${items.length} / ${totalCount})`}
-        </div>
+        </EndMessage>
       )}
-    </div>
+    </FeedStack>
   );
 }

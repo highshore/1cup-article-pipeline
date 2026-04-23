@@ -17,17 +17,8 @@ import {
   XMarkIcon,
 } from "@/components/icons";
 import { LatestCollectionCard } from "@/components/latest-collection-card";
+import { PipelineScheduleForm } from "@/components/pipeline-schedule-form";
 import type { ArticleDashboardData, ArticleDashboardFilters } from "@/lib/article-dashboard";
-
-const weekdayOptions = [
-  { value: 0, label: "Mon" },
-  { value: 1, label: "Tue" },
-  { value: 2, label: "Wed" },
-  { value: 3, label: "Thu" },
-  { value: 4, label: "Fri" },
-  { value: 5, label: "Sat" },
-  { value: 6, label: "Sun" },
-] as const;
 
 const panelClass = "rounded-[26px] border border-slate-200/75 bg-white/80 p-6 shadow-[0_12px_30px_rgba(15,23,42,0.05)] backdrop-blur";
 const sectionHeadingClass = "text-lg font-semibold tracking-[-0.02em]";
@@ -204,7 +195,7 @@ export function ArticleOpsDashboard({
             </div>
 
             <div className="mt-5 space-y-5">
-              <ScheduleForm schedule={dailySchedule} />
+              <PipelineScheduleForm schedule={dailySchedule} />
             </div>
           </section>
 
@@ -341,41 +332,6 @@ function FlowMiniMetric({ label, value }: { label: string; value: string }) {
       <p className="text-xs uppercase tracking-[0.16em] text-ink/45">{label}</p>
       <p className="mt-2 text-sm font-semibold">{value}</p>
     </div>
-  );
-}
-
-function ScheduleForm({ schedule }: { schedule: ArticleDashboardData["pipelineSchedules"][number] | null }) {
-  return (
-    <AsyncForm
-      action="/api/pipeline-schedules"
-      checkboxGroupName="weekdays"
-      className="space-y-0"
-    >
-      <input name="scheduleKey" type="hidden" value="daily_kakao_report" />
-      <div className="space-y-3">
-        <p className="text-sm font-semibold text-ink">Select weekdays</p>
-        <div className="grid grid-cols-7 gap-2">
-          {weekdayOptions.map((weekday) => (
-            <label key={`daily-kakao-${weekday.value}`} className="cursor-pointer">
-              <input className="peer sr-only" defaultChecked={schedule?.weekdays.includes(weekday.value) ?? false} name="weekdays" type="checkbox" value={String(weekday.value)} />
-              <span className="inline-flex h-10 w-full items-center justify-center rounded-xl border border-slate-200 bg-white/78 text-xs font-semibold text-ink/55 transition peer-checked:border-ink peer-checked:bg-ink peer-checked:text-white">
-                {weekday.label}
-              </span>
-            </label>
-          ))}
-        </div>
-      </div>
-      <div className="mt-10 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
-        <label className="grid flex-1 gap-2 text-sm text-ink/70">
-          <span className="font-semibold text-ink">Time</span>
-          <input className="min-h-11 rounded-2xl border border-slate-200 bg-white px-4 text-sm outline-none" defaultValue={schedule?.timeOfDay ?? "09:00"} name="timeOfDay" type="time" />
-        </label>
-        <button className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-ink px-4 text-sm font-semibold text-white hover:bg-ink/90" type="submit">
-          <ClockIcon className="h-4 w-4" />
-          Save
-        </button>
-      </div>
-    </AsyncForm>
   );
 }
 

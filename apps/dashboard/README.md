@@ -16,6 +16,16 @@ npm run dev
 
 Then open `http://localhost:3000`.
 
+## Frontend style convention
+
+Use TSX components with `styled-components` for page and component styling. The app is already configured
+for styled-components SSR through `next.config.ts` and `lib/styled-components-registry.tsx`.
+
+- Prefer colocated `const Component = styled.element\`...\`;` definitions inside the TSX file that owns the UI.
+- Keep Tailwind utility classes only for legacy code, one-off icon sizing, or global primitives in `globals.css`.
+- New cards, panels, form controls, page sections, and interactive states should be styled-components first.
+- Use transient props such as `$status` for visual variants so styling data does not leak into the DOM.
+
 ## Environment
 
 The source `.env.local` lives at the repository root. The dashboard npm scripts automatically create
