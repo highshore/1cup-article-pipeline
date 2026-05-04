@@ -140,7 +140,6 @@ export function ArticleOpsDashboard({
         : "Pipeline running"
     : "Run pipeline";
   const dailySchedule = data.pipelineSchedules.find((schedule) => schedule.scheduleKey === "daily_kakao_report") ?? null;
-  const weeklySchedule = data.pipelineSchedules.find((schedule) => schedule.scheduleKey === "weekly_kakao_report") ?? null;
   const articleFeedKey = [
     data.totalItems,
     data.items.map((item) => item.articleId).join("|"),
@@ -313,15 +312,6 @@ export function ArticleOpsDashboard({
                 scheduleKey="daily_kakao_report"
                 title="Daily Kakao report"
               />
-              <div className="border-t border-slate-200/75" />
-              <PipelineScheduleForm
-                cadenceLabel="Weekly"
-                helper="Single weekday"
-                maxCheckedValues={1}
-                schedule={weeklySchedule}
-                scheduleKey="weekly_kakao_report"
-                title="Weekly Kakao report"
-              />
             </div>
           </section>
 
@@ -342,18 +332,7 @@ export function ArticleOpsDashboard({
                   </AsyncForm>
                 ) : null}
 
-                <AsyncForm action="/api/pipeline-runs/start" className="flex items-center gap-2">
-                  <label className="sr-only" htmlFor="pipeline-cadence">Run type</label>
-                  <select
-                    className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-ink outline-none disabled:cursor-not-allowed disabled:opacity-60"
-                    defaultValue="daily"
-                    disabled={data.isPipelineRunning}
-                    id="pipeline-cadence"
-                    name="cadence"
-                  >
-                    <option value="daily">Daily</option>
-                    <option value="weekly">Weekly</option>
-                  </select>
+                <AsyncForm action="/api/pipeline-runs/start">
                   <button className="inline-flex h-9 items-center justify-center gap-2 rounded-xl bg-ink px-3 text-sm font-semibold text-white hover:bg-ink/90 disabled:cursor-not-allowed disabled:bg-ink/50" disabled={data.isPipelineRunning} type="submit">
                     {data.isPipelineRunning ? <ArrowPathIcon className="h-4 w-4 animate-spin" /> : <PlayIcon className="h-4 w-4" />}
                     {primaryActionLabel}

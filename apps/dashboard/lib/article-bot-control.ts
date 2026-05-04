@@ -102,7 +102,6 @@ export async function requestPipelineRun(cadence: PipelineRunCadence = "daily") 
     {
       triggerSource: "dashboard",
       requestedBy: "dashboard-ui",
-      cadence,
     },
     () => requestPipelineRunLocal(cadence),
   );

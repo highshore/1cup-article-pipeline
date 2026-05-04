@@ -61,13 +61,9 @@ class ControlRequestHandler(BaseHTTPRequestHandler):
 
         try:
             if self.path == "/pipeline-runs/request":
-                cadence = str(payload.get("cadence") or "daily").strip().lower()
-                if cadence not in {"daily", "weekly"}:
-                    cadence = "daily"
                 result = enqueue_pipeline_run_request(
                     trigger_source=str(payload.get("triggerSource") or "dashboard"),
                     requested_by=str(payload.get("requestedBy") or "dashboard-ui"),
-                    cadence=cadence,
                 )
                 self._write_json(HTTPStatus.OK, result)
                 return

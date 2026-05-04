@@ -3,7 +3,7 @@
 import styled from "styled-components";
 
 import { AsyncForm } from "@/components/async-form";
-import { CalendarIcon, ClockIcon } from "@/components/icons";
+import { ClockIcon } from "@/components/icons";
 import type { ArticleDashboardData } from "@/lib/article-dashboard";
 
 const weekdayOptions = [
@@ -126,23 +126,17 @@ export function PipelineScheduleForm({
   title,
   cadenceLabel,
   helper,
-  maxCheckedValues,
 }: {
   schedule: ArticleDashboardData["pipelineSchedules"][number] | null;
-  scheduleKey: "daily_kakao_report" | "weekly_kakao_report";
+  scheduleKey: "daily_kakao_report";
   title: string;
   cadenceLabel: string;
   helper: string;
-  maxCheckedValues?: number;
 }) {
-  const SaveIcon = scheduleKey === "weekly_kakao_report" ? CalendarIcon : ClockIcon;
-
   return (
     <AsyncForm
       action="/api/pipeline-schedules"
       checkboxGroupName="weekdays"
-      maxCheckedValues={maxCheckedValues}
-      maxCheckedMessage="Select only one weekday for the weekly Kakao report."
     >
       <input name="scheduleKey" type="hidden" value={scheduleKey} />
       <div className="mb-4 flex items-center justify-between gap-3">
@@ -169,7 +163,7 @@ export function PipelineScheduleForm({
           <TimeInput defaultValue={schedule?.timeOfDay ?? "09:00"} name="timeOfDay" type="time" />
         </TimeLabel>
         <SaveButton type="submit">
-          <SaveIcon className="h-4 w-4" />
+          <ClockIcon className="h-4 w-4" />
           Save
         </SaveButton>
       </TimeRow>

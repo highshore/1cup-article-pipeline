@@ -32,7 +32,7 @@ type PipelineScheduleRow = {
   id: number;
   schedule_key: PipelineScheduleKey;
   report_type: string;
-  cadence: "daily" | "weekly";
+  cadence: "daily";
   weekdays_json: unknown;
   time_of_day: string;
   timezone_name: string;
@@ -80,18 +80,6 @@ const defaultPipelineSchedules: PipelineSchedule[] = [
     scheduleKey: "daily_kakao_report",
     reportType: "daily-kakao-report",
     cadence: "daily",
-    weekdays: [],
-    timeOfDay: "09:00",
-    timezoneName: "Asia/Seoul",
-    lastEnqueuedSlot: null,
-    lastEnqueuedAt: null,
-    updatedAt: "",
-  },
-  {
-    id: -2,
-    scheduleKey: "weekly_kakao_report",
-    reportType: "weekly-kakao-report",
-    cadence: "weekly",
     weekdays: [],
     timeOfDay: "09:00",
     timezoneName: "Asia/Seoul",
@@ -159,7 +147,7 @@ export async function getPipelineState(limit = 12): Promise<PipelineState> {
 export async function requestPipelineRunSupabase(cadence: PipelineRunCadence = "daily"): Promise<{ ok: boolean; requestId?: number; reason?: string }> {
   const supabase = await createClient();
   const [targetSources, priorityTargets] = await Promise.all([listTargetSources(supabase), listPriorityTargets(supabase)]);
-  const workflowKey = cadence === "weekly" ? "article-bot.weekly-brief" : "article-bot.daily-brief";
+  const workflowKey = "article-bot.daily-brief";
   const payload = {
     cadence,
     workflowKey,
@@ -314,18 +302,20 @@ async function listPipelineSchedules(supabase: SupabaseClient): Promise<Pipeline
     .order("id");
   if (isMissingRelation(error)) return defaultPipelineSchedules;
   throwIfError(error);
-  return ((data ?? []) as PipelineScheduleRow[]).map((row) => ({
-    id: Number(row.id),
-    scheduleKey: row.schedule_key,
-    reportType: row.report_type,
-    cadence: row.cadence === "weekly" ? "weekly" : "daily",
-    weekdays: safeJsonArray(row.weekdays_json).map(Number).filter((value) => Number.isInteger(value)),
-    timeOfDay: row.time_of_day,
-    timezoneName: row.timezone_name,
-    lastEnqueuedSlot: row.last_enqueued_slot,
-    lastEnqueuedAt: row.last_enqueued_at,
-    updatedAt: row.updated_at,
-  }));
+  return ((data ?? []) as PipelineScheduleRow[])
+    .filter((row) => row.schedule_key === "daily_kakao_report")
+    .map((row) => ({
+      id: Number(row.id),
+      scheduleKey: row.schedule_key,
+      reportType: row.report_type,
+      cadence: "daily",
+      weekdays: safeJsonArray(row.weekdays_json).map(Number).filter((value) => Number.isInteger(value)),
+      timeOfDay: row.time_of_day,
+      timezoneName: row.timezone_name,
+      lastEnqueuedSlot: row.last_enqueued_slot,
+      lastEnqueuedAt: row.last_enqueued_at,
+      updatedAt: row.updated_at,
+    }));
 }
 
 async function listPipelineRunRecords(supabase: SupabaseClient, limit: number): Promise<PipelineRunRecord[]> {

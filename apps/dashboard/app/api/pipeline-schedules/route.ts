@@ -26,7 +26,7 @@ export async function POST(request: Request) {
       await mutatePipelineSchedule({ intent: "reset" });
     }
 
-    if (scheduleKey === "daily_kakao_report" || scheduleKey === "weekly_kakao_report") {
+    if (scheduleKey === "daily_kakao_report") {
       await mutatePipelineSchedule({ scheduleKey, weekdays, timeOfDay });
     }
   } catch (error) {

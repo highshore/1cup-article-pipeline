@@ -13,13 +13,11 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--trigger-source", default="manual")
     parser.add_argument("--requested-by", default="cli")
-    parser.add_argument("--cadence", choices=["daily", "weekly"], default="daily")
     args = parser.parse_args()
 
     result = enqueue_pipeline_run_request(
         trigger_source=args.trigger_source,
         requested_by=args.requested_by,
-        cadence=args.cadence,
     )
     print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0 if result.get("ok") else 1

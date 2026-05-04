@@ -18,7 +18,6 @@ load_root_env()
 KST = timezone(timedelta(hours=9))
 PIPELINE_KEY = "article-bot"
 DAILY_WORKFLOW_KEY = "article-bot.daily-brief"
-WEEKLY_WORKFLOW_KEY = "article-bot.weekly-brief"
 
 DEFAULT_TARGET_SOURCES = ["wsj.com", "ft.com"]
 DEFAULT_PRIORITY_TARGETS = [
@@ -33,13 +32,6 @@ DEFAULT_PIPELINE_SCHEDULES = [
         "schedule_key": "daily_kakao_report",
         "report_type": "daily-kakao-report",
         "cadence": "daily",
-        "weekdays": [],
-        "time_of_day": "09:00",
-    },
-    {
-        "schedule_key": "weekly_kakao_report",
-        "report_type": "weekly-kakao-report",
-        "cadence": "weekly",
         "weekdays": [],
         "time_of_day": "09:00",
     },
@@ -182,7 +174,7 @@ def most_recent_due_slot(weekdays: list[int], time_of_day: str, *, reference: da
 
 
 def workflow_key_for_cadence(cadence: str) -> str:
-    return WEEKLY_WORKFLOW_KEY if cadence == "weekly" else DAILY_WORKFLOW_KEY
+    return DAILY_WORKFLOW_KEY
 
 
 def enqueue_pipeline_run_request(
@@ -198,7 +190,8 @@ def enqueue_pipeline_run_request(
     try:
         target_sources = load_target_sources(store)
         priority_targets = load_priority_targets(store)
-        resolved_workflow_key = workflow_key or workflow_key_for_cadence(cadence)
+        cadence = "daily"
+        resolved_workflow_key = workflow_key or DAILY_WORKFLOW_KEY
         payload: dict[str, object] = {
             "cadence": cadence,
             "workflowKey": resolved_workflow_key,
@@ -331,8 +324,8 @@ def reset_pipeline_schedules() -> dict[str, object]:
 
 
 def upsert_pipeline_schedule(*, schedule_key: str, weekdays: list[object], time_of_day: str) -> dict[str, object]:
-    cadence = "weekly" if schedule_key == "weekly_kakao_report" else "daily"
-    if schedule_key not in {"daily_kakao_report", "weekly_kakao_report"}:
+    cadence = "daily"
+    if schedule_key != "daily_kakao_report":
         return {"ok": False, "reason": "invalid-schedule-key"}
     normalized_time = normalize_time_of_day(time_of_day)
     if not normalized_time:
@@ -363,7 +356,11 @@ def process_due_pipeline_schedules(store: SupabaseStore) -> list[dict[str, objec
         query={"select": "*", "order": "id.asc"},
     )
     for row in rows:
+        if str(row.get("schedule_key") or "") != "daily_kakao_report":
+            continue
         cadence = str(row.get("cadence") or "daily")
+        if cadence != "daily":
+            continue
         parsed_weekdays = row.get("weekdays_json") if isinstance(row.get("weekdays_json"), list) else []
         weekdays = normalize_schedule_weekdays(parsed_weekdays, allow_multiple=cadence == "daily")
         due_slot = most_recent_due_slot(weekdays, str(row.get("time_of_day") or ""))

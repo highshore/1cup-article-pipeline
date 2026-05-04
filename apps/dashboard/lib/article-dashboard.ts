@@ -51,14 +51,14 @@ export type TargetSource = {
   domain: string;
 };
 
-export type PipelineScheduleKey = "daily_kakao_report" | "weekly_kakao_report";
-export type PipelineRunCadence = "daily" | "weekly";
+export type PipelineScheduleKey = "daily_kakao_report";
+export type PipelineRunCadence = "daily";
 
 export type PipelineSchedule = {
   id: number;
   scheduleKey: PipelineScheduleKey;
   reportType: string;
-  cadence: "daily" | "weekly";
+  cadence: "daily";
   weekdays: number[];
   timeOfDay: string;
   timezoneName: string;
