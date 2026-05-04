@@ -3,7 +3,7 @@
 import styled from "styled-components";
 
 import { AsyncForm } from "@/components/async-form";
-import { ClockIcon } from "@/components/icons";
+import { CalendarIcon, ClockIcon } from "@/components/icons";
 import type { ArticleDashboardData } from "@/lib/article-dashboard";
 
 const weekdayOptions = [
@@ -122,17 +122,41 @@ const SaveButton = styled.button`
 
 export function PipelineScheduleForm({
   schedule,
+  scheduleKey,
+  title,
+  cadenceLabel,
+  helper,
+  maxCheckedValues,
 }: {
   schedule: ArticleDashboardData["pipelineSchedules"][number] | null;
+  scheduleKey: "daily_kakao_report" | "weekly_kakao_report";
+  title: string;
+  cadenceLabel: string;
+  helper: string;
+  maxCheckedValues?: number;
 }) {
+  const SaveIcon = scheduleKey === "weekly_kakao_report" ? CalendarIcon : ClockIcon;
+
   return (
-    <AsyncForm action="/api/pipeline-schedules" checkboxGroupName="weekdays">
-      <input name="scheduleKey" type="hidden" value="daily_kakao_report" />
+    <AsyncForm
+      action="/api/pipeline-schedules"
+      checkboxGroupName="weekdays"
+      maxCheckedValues={maxCheckedValues}
+      maxCheckedMessage="Select only one weekday for the weekly Kakao report."
+    >
+      <input name="scheduleKey" type="hidden" value={scheduleKey} />
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div>
+          <p className="text-base font-semibold tracking-[-0.03em] text-ink">{title}</p>
+          <p className="mt-1 text-xs uppercase tracking-[0.14em] text-ink/45">{helper}</p>
+        </div>
+        <span className="rounded-full bg-ember/10 px-3 py-1 text-xs font-semibold text-ember">{cadenceLabel}</span>
+      </div>
       <WeekdaySection>
         <FieldLabel>Select weekdays</FieldLabel>
         <WeekdayGrid>
           {weekdayOptions.map((weekday) => (
-            <WeekdayOption key={`daily-kakao-${weekday.value}`}>
+            <WeekdayOption key={`${scheduleKey}-${weekday.value}`}>
               <HiddenCheckbox defaultChecked={schedule?.weekdays.includes(weekday.value) ?? false} name="weekdays" type="checkbox" value={String(weekday.value)} />
               <WeekdayButton>{weekday.label}</WeekdayButton>
             </WeekdayOption>
@@ -145,7 +169,7 @@ export function PipelineScheduleForm({
           <TimeInput defaultValue={schedule?.timeOfDay ?? "09:00"} name="timeOfDay" type="time" />
         </TimeLabel>
         <SaveButton type="submit">
-          <ClockIcon className="h-4 w-4" />
+          <SaveIcon className="h-4 w-4" />
           Save
         </SaveButton>
       </TimeRow>

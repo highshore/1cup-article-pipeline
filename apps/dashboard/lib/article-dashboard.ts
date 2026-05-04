@@ -52,6 +52,7 @@ export type TargetSource = {
 };
 
 export type PipelineScheduleKey = "daily_kakao_report" | "weekly_kakao_report";
+export type PipelineRunCadence = "daily" | "weekly";
 
 export type PipelineSchedule = {
   id: number;
@@ -241,19 +242,21 @@ export const requestPipelineRunLocal = requestPipelineRunSupabase;
 export const stopPipelineRunLocal = stopPipelineRunSupabase;
 
 export async function mutatePriorityTargetLocal(
-  mutation: { intent: "add"; label: string } | { intent: "delete"; targetId: number },
+  mutation: { intent: "add"; label: string } | { intent: "delete"; targetId: number } | { intent: "reset" },
 ): Promise<{ ok: boolean; reason?: string }> {
   return mutatePriorityTargetSupabase(mutation);
 }
 
 export async function mutateTargetSourceLocal(
-  mutation: { intent: "add"; domain: string } | { intent: "delete"; targetSourceId: number },
+  mutation: { intent: "add"; domain: string } | { intent: "delete"; targetSourceId: number } | { intent: "reset" },
 ): Promise<{ ok: boolean; reason?: string }> {
   return mutateTargetSourceSupabase(mutation);
 }
 
 export async function mutatePipelineScheduleLocal(
-  mutation: { scheduleKey: PipelineScheduleKey; weekdays: number[]; timeOfDay: string },
+  mutation:
+    | { scheduleKey: PipelineScheduleKey; weekdays: number[]; timeOfDay: string }
+    | { intent: "reset" },
 ): Promise<{ ok: boolean; reason?: string }> {
   return mutatePipelineScheduleSupabase(mutation);
 }

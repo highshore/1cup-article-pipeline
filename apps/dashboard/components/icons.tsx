@@ -116,6 +116,17 @@ export function ClockIcon({ className = "h-4 w-4" }: IconProps) {
   );
 }
 
+export function CalendarIcon({ className = "h-4 w-4" }: IconProps) {
+  return (
+    <BaseIcon className={className}>
+      <rect height="15" rx="2.25" width="16.5" x="3.75" y="5.25" />
+      <path d="M8.25 3.75v3" />
+      <path d="M15.75 3.75v3" />
+      <path d="M3.75 9.75h16.5" />
+    </BaseIcon>
+  );
+}
+
 export function PlayIcon({ className = "h-4 w-4" }: IconProps) {
   return (
     <BaseIcon className={className}>
@@ -157,6 +168,18 @@ export function TrendingIcon({ className = "h-4 w-4" }: IconProps) {
     <BaseIcon className={className}>
       <path d="m4.5 15 5.25-5.25 3.75 3.75 6-6" />
       <path d="M15 7.5h4.5V12" />
+    </BaseIcon>
+  );
+}
+
+export function TrashIcon({ className = "h-4 w-4" }: IconProps) {
+  return (
+    <BaseIcon className={className}>
+      <path d="M4.5 6.75h15" />
+      <path d="M9.75 6.75V4.5h4.5v2.25" />
+      <path d="M6.75 6.75 7.5 19.5h9l.75-12.75" />
+      <path d="M10.5 10.5v5.25" />
+      <path d="M13.5 10.5v5.25" />
     </BaseIcon>
   );
 }

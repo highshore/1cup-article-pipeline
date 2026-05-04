@@ -14,9 +14,12 @@ from article_bot_store import (
     add_priority_target,
     add_target_source,
     cancel_active_pipeline_request,
+    clear_priority_targets,
+    clear_target_sources,
     delete_priority_target,
     delete_target_source,
     enqueue_pipeline_run_request,
+    reset_pipeline_schedules,
     upsert_pipeline_schedule,
 )
 
@@ -58,9 +61,13 @@ class ControlRequestHandler(BaseHTTPRequestHandler):
 
         try:
             if self.path == "/pipeline-runs/request":
+                cadence = str(payload.get("cadence") or "daily").strip().lower()
+                if cadence not in {"daily", "weekly"}:
+                    cadence = "daily"
                 result = enqueue_pipeline_run_request(
                     trigger_source=str(payload.get("triggerSource") or "dashboard"),
                     requested_by=str(payload.get("requestedBy") or "dashboard-ui"),
+                    cadence=cadence,
                 )
                 self._write_json(HTTPStatus.OK, result)
                 return
@@ -80,6 +87,9 @@ class ControlRequestHandler(BaseHTTPRequestHandler):
                 if intent == "delete" and isinstance(payload.get("targetId"), int):
                     self._write_json(HTTPStatus.OK, delete_priority_target(int(payload["targetId"])))
                     return
+                if intent == "reset":
+                    self._write_json(HTTPStatus.OK, clear_priority_targets())
+                    return
                 self._write_json(HTTPStatus.BAD_REQUEST, {"ok": False, "error": "invalid-intent"})
                 return
 
@@ -91,10 +101,18 @@ class ControlRequestHandler(BaseHTTPRequestHandler):
                 if intent == "delete" and isinstance(payload.get("targetSourceId"), int):
                     self._write_json(HTTPStatus.OK, delete_target_source(int(payload["targetSourceId"])))
                     return
+                if intent == "reset":
+                    self._write_json(HTTPStatus.OK, clear_target_sources())
+                    return
                 self._write_json(HTTPStatus.BAD_REQUEST, {"ok": False, "error": "invalid-intent"})
                 return
 
             if self.path == "/pipeline-schedules":
+                intent = str(payload.get("intent") or "")
+                if intent == "reset":
+                    self._write_json(HTTPStatus.OK, reset_pipeline_schedules())
+                    return
+
                 weekdays = payload.get("weekdays")
                 result = upsert_pipeline_schedule(
                     schedule_key=str(payload.get("scheduleKey") or ""),

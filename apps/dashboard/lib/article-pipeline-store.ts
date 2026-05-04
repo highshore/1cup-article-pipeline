@@ -4,6 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type {
   PipelineFlowStep,
+  PipelineRunCadence,
   PipelineRunRecord,
   PipelineRunRequest,
   PipelineSchedule,
@@ -155,12 +156,13 @@ export async function getPipelineState(limit = 12): Promise<PipelineState> {
   };
 }
 
-export async function requestPipelineRunSupabase(): Promise<{ ok: boolean; requestId?: number; reason?: string }> {
+export async function requestPipelineRunSupabase(cadence: PipelineRunCadence = "daily"): Promise<{ ok: boolean; requestId?: number; reason?: string }> {
   const supabase = await createClient();
   const [targetSources, priorityTargets] = await Promise.all([listTargetSources(supabase), listPriorityTargets(supabase)]);
+  const workflowKey = cadence === "weekly" ? "article-bot.weekly-brief" : "article-bot.daily-brief";
   const payload = {
-    cadence: "daily",
-    workflowKey: "article-bot.daily-brief",
+    cadence,
+    workflowKey,
     requestedFrom: "dashboard",
     sources: targetSources.map((source) => source.domain),
     targetSourceDomains: targetSources.map((source) => source.domain),
@@ -172,8 +174,8 @@ export async function requestPipelineRunSupabase(): Promise<{ ok: boolean; reque
   const { data, error } = await supabase.rpc("article_bot_enqueue_pipeline_request", {
     p_trigger_source: "dashboard",
     p_requested_by: "dashboard-ui",
-    p_cadence: "daily",
-    p_workflow_key: "article-bot.daily-brief",
+    p_cadence: cadence,
+    p_workflow_key: workflowKey,
     p_payload_json: payload,
     p_backend_metadata_json: { submissionMode: "dispatcher", notificationTarget: "kakao" },
   });
@@ -202,9 +204,15 @@ export async function stopPipelineRunSupabase(): Promise<{ ok: boolean; requestI
 }
 
 export async function mutatePriorityTargetSupabase(
-  mutation: { intent: "add"; label: string } | { intent: "delete"; targetId: number },
+  mutation: { intent: "add"; label: string } | { intent: "delete"; targetId: number } | { intent: "reset" },
 ): Promise<{ ok: boolean; reason?: string }> {
   const supabase = await createClient();
+  if (mutation.intent === "reset") {
+    const { error } = await supabase.from("priority_targets").delete().gte("id", 0);
+    throwUnlessMissing(error);
+    return { ok: true };
+  }
+
   if (mutation.intent === "delete") {
     const { error } = await supabase.from("priority_targets").delete().eq("id", mutation.targetId);
     throwUnlessMissing(error);
@@ -220,9 +228,15 @@ export async function mutatePriorityTargetSupabase(
 }
 
 export async function mutateTargetSourceSupabase(
-  mutation: { intent: "add"; domain: string } | { intent: "delete"; targetSourceId: number },
+  mutation: { intent: "add"; domain: string } | { intent: "delete"; targetSourceId: number } | { intent: "reset" },
 ): Promise<{ ok: boolean; reason?: string }> {
   const supabase = await createClient();
+  if (mutation.intent === "reset") {
+    const { error } = await supabase.from("target_sources").delete().gte("id", 0);
+    throwUnlessMissing(error);
+    return { ok: true };
+  }
+
   if (mutation.intent === "delete") {
     const { error } = await supabase.from("target_sources").delete().eq("id", mutation.targetSourceId);
     throwUnlessMissing(error);
@@ -238,8 +252,29 @@ export async function mutateTargetSourceSupabase(
 }
 
 export async function mutatePipelineScheduleSupabase(
-  mutation: { scheduleKey: PipelineScheduleKey; weekdays: number[]; timeOfDay: string },
+  mutation:
+    | { scheduleKey: PipelineScheduleKey; weekdays: number[]; timeOfDay: string }
+    | { intent: "reset" },
 ): Promise<{ ok: boolean; reason?: string }> {
+  if ("intent" in mutation) {
+    const supabase = await createClient();
+    const now = new Date().toISOString();
+    for (const schedule of defaultPipelineSchedules) {
+      const { error } = await supabase
+        .from("pipeline_schedules")
+        .update({
+          weekdays_json: schedule.weekdays,
+          time_of_day: schedule.timeOfDay,
+          last_enqueued_slot: null,
+          last_enqueued_at: null,
+          updated_at: now,
+        })
+        .eq("schedule_key", schedule.scheduleKey);
+      throwUnlessMissing(error);
+    }
+    return { ok: true };
+  }
+
   const schedule = defaultPipelineSchedules.find((entry) => entry.scheduleKey === mutation.scheduleKey);
   if (!schedule) return { ok: false, reason: "invalid-schedule-key" };
   if (!/^\d{2}:\d{2}$/.test(mutation.timeOfDay)) return { ok: false, reason: "invalid-time" };

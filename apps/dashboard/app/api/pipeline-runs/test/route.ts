@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { requestPipelineRun } from "@/lib/article-bot-control";
+import type { PipelineRunCadence } from "@/lib/article-dashboard";
 
 function getRedirectUrl(request: Request) {
   return request.headers.get("referer") ?? new URL("/runs", request.url).toString();
@@ -12,7 +13,9 @@ function wantsAsyncResponse(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    await requestPipelineRun();
+    const formData = await request.formData();
+    const cadence: PipelineRunCadence = formData.get("cadence") === "weekly" ? "weekly" : "daily";
+    await requestPipelineRun(cadence);
   } catch (error) {
     console.error("pipeline run request failed", error);
   }

@@ -6,6 +6,7 @@ import {
   mutateTargetSourceLocal,
   requestPipelineRunLocal,
   stopPipelineRunLocal,
+  type PipelineRunCadence,
   type PipelineScheduleKey,
 } from "@/lib/article-dashboard";
 
@@ -23,6 +24,9 @@ type PriorityTargetMutation =
   | {
       intent: "delete";
       targetId: number;
+    }
+  | {
+      intent: "reset";
     };
 
 type TargetSourceMutation =
@@ -33,13 +37,20 @@ type TargetSourceMutation =
   | {
       intent: "delete";
       targetSourceId: number;
+    }
+  | {
+      intent: "reset";
     };
 
-type PipelineScheduleMutation = {
-  scheduleKey: PipelineScheduleKey;
-  weekdays: number[];
-  timeOfDay: string;
-};
+type PipelineScheduleMutation =
+  | {
+      scheduleKey: PipelineScheduleKey;
+      weekdays: number[];
+      timeOfDay: string;
+    }
+  | {
+      intent: "reset";
+    };
 
 const CONTROL_BASE_URL = process.env.ARTICLE_BOT_CONTROL_BASE_URL ?? "";
 
@@ -85,14 +96,15 @@ async function withLocalFallback<T extends ControlResponse>(
   }
 }
 
-export async function requestPipelineRun() {
+export async function requestPipelineRun(cadence: PipelineRunCadence = "daily") {
   return withLocalFallback(
     "/pipeline-runs/request",
     {
       triggerSource: "dashboard",
       requestedBy: "dashboard-ui",
+      cadence,
     },
-    requestPipelineRunLocal,
+    () => requestPipelineRunLocal(cadence),
   );
 }
 

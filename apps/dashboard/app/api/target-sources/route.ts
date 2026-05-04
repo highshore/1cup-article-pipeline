@@ -10,13 +10,23 @@ function wantsAsyncResponse(request: Request) {
   return request.headers.get("x-dashboard-async") === "1";
 }
 
+function parseCommaSeparatedList(value: FormDataEntryValue | null) {
+  return String(value ?? "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
 export async function POST(request: Request) {
   const formData = await request.formData();
   const intent = String(formData.get("intent") ?? "");
+  let mutationError: unknown = null;
 
   try {
     if (intent === "add") {
-      await mutateTargetSource({ intent: "add", domain: String(formData.get("domain") ?? "") });
+      for (const domain of parseCommaSeparatedList(formData.get("domain"))) {
+        await mutateTargetSource({ intent: "add", domain });
+      }
     }
     if (intent === "delete") {
       const targetSourceId = Number(formData.get("targetSourceId"));
@@ -24,11 +34,19 @@ export async function POST(request: Request) {
         await mutateTargetSource({ intent: "delete", targetSourceId });
       }
     }
+    if (intent === "reset") {
+      await mutateTargetSource({ intent: "reset" });
+    }
   } catch (error) {
+    mutationError = error;
     console.error("target-source mutation failed", error);
   }
 
   if (wantsAsyncResponse(request)) {
+    if (mutationError) {
+      return NextResponse.json({ ok: false, error: "target-source-mutation-failed" }, { status: 500 });
+    }
+
     return NextResponse.json({ ok: true });
   }
 

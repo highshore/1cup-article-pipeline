@@ -28,6 +28,22 @@ DEFAULT_PRIORITY_TARGETS = [
     "Business relevance",
     "Chart / media usefulness",
 ]
+DEFAULT_PIPELINE_SCHEDULES = [
+    {
+        "schedule_key": "daily_kakao_report",
+        "report_type": "daily-kakao-report",
+        "cadence": "daily",
+        "weekdays": [],
+        "time_of_day": "09:00",
+    },
+    {
+        "schedule_key": "weekly_kakao_report",
+        "report_type": "weekly-kakao-report",
+        "cadence": "weekly",
+        "weekdays": [],
+        "time_of_day": "09:00",
+    },
+]
 
 
 class SupabaseStore:
@@ -247,6 +263,15 @@ def delete_priority_target(target_id: int) -> dict[str, object]:
         store.close()
 
 
+def clear_priority_targets() -> dict[str, object]:
+    store = get_connection()
+    try:
+        store.delete("priority_targets", query={"id": "gte.0"})
+        return {"ok": True}
+    finally:
+        store.close()
+
+
 def add_target_source(domain: str) -> dict[str, object]:
     normalized = normalize_target_source_domain(domain)
     if not normalized:
@@ -265,6 +290,41 @@ def delete_target_source(target_source_id: int) -> dict[str, object]:
     store = get_connection()
     try:
         store.delete("target_sources", query={"id": f"eq.{target_source_id}"})
+        return {"ok": True}
+    finally:
+        store.close()
+
+
+def clear_target_sources() -> dict[str, object]:
+    store = get_connection()
+    try:
+        store.delete("target_sources", query={"id": "gte.0"})
+        return {"ok": True}
+    finally:
+        store.close()
+
+
+def reset_pipeline_schedules() -> dict[str, object]:
+    store = get_connection()
+    try:
+        updated_at = now_iso()
+        for schedule in DEFAULT_PIPELINE_SCHEDULES:
+            weekdays = normalize_schedule_weekdays(
+                list(schedule["weekdays"]),
+                allow_multiple=str(schedule["cadence"]) == "daily",
+            )
+            time_of_day = normalize_time_of_day(str(schedule["time_of_day"])) or "09:00"
+            store.update(
+                "pipeline_schedules",
+                {
+                    "weekdays_json": weekdays,
+                    "time_of_day": time_of_day,
+                    "last_enqueued_slot": None,
+                    "last_enqueued_at": None,
+                    "updated_at": updated_at,
+                },
+                query={"schedule_key": f"eq.{schedule['schedule_key']}"},
+            )
         return {"ok": True}
     finally:
         store.close()

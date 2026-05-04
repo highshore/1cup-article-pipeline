@@ -14,6 +14,7 @@ import {
   QueueIcon,
   StopIcon,
   TrendingIcon,
+  TrashIcon,
   XMarkIcon,
 } from "@/components/icons";
 import { LatestCollectionCard } from "@/components/latest-collection-card";
@@ -81,6 +82,14 @@ function faviconUrlForDomain(domain: string) {
   return `https://www.google.com/s2/favicons?sz=64&domain=${encodeURIComponent(domain)}`;
 }
 
+function flowStepClasses(status: string) {
+  if (status === "running") return "border-sky-200 bg-sky-50/80";
+  if (status === "success" || status === "succeeded") return "border-emerald-200 bg-emerald-50/70";
+  if (status === "failed") return "border-red-200 bg-red-50/70";
+  if (status === "cancelled" || status === "cancelling") return "border-red-200 bg-red-50/50";
+  return "border-slate-200/75 bg-white/72";
+}
+
 export function ArticleOpsDashboard({
   data,
   todayLabel,
@@ -94,11 +103,35 @@ export function ArticleOpsDashboard({
   const activeFlowStep =
     data.pipelineFlowSteps.find((step) => step.status === "running") ??
     data.pipelineFlowSteps.find((step) => step.status === "failed") ??
-    data.pipelineFlowSteps.at(-1) ??
+    (data.latestPipelineRun ? data.pipelineFlowSteps.at(-1) : null) ??
     null;
   const nextFlowStep = data.pipelineFlowSteps.find((step) => step.status === "queued") ?? null;
   const flowProgress = data.pipelineFlowSteps.length > 0 ? Math.round((completedFlowSteps / data.pipelineFlowSteps.length) * 100) : 0;
-  const flowStatus = data.activePipelineRequest?.status ?? data.latestPipelineRun?.status ?? null;
+  const showActiveRequest =
+    Boolean(data.activePipelineRequest) &&
+    (!data.latestPipelineRun || (data.latestPipelineRun.status !== "queued" && data.latestPipelineRun.status !== "running"));
+  const isCancellationPending = data.activePipelineRequest?.status === "cancelling";
+  const flowStatus = isCancellationPending
+    ? data.activePipelineRequest?.status ?? null
+    : showActiveRequest
+      ? data.activePipelineRequest?.status ?? null
+      : data.latestPipelineRun?.status ?? null;
+  const flowScopeLabel = showActiveRequest ? "Dispatcher queue" : (data.latestPipelineRun?.sourceScope ?? "Waiting");
+  const flowRecordedAtLabel =
+    (showActiveRequest
+      ? data.activePipelineRequest?.requestedAt
+      : data.latestPipelineRun?.recordedAt
+    )?.replace("T", " ").slice(0, 16) ?? "No run history";
+  const currentStageLabel = isCancellationPending
+    ? "Sending stop request"
+    : showActiveRequest
+      ? "Waiting for dispatcher"
+      : activeFlowStep?.stageLabel ?? "Idle";
+  const nextStageLabel = isCancellationPending
+    ? "Stop and cleanup"
+    : showActiveRequest
+      ? data.pipelineFlowSteps[0]?.stageLabel ?? "Complete"
+      : nextFlowStep?.stageLabel ?? "Complete";
   const primaryActionLabel = data.isPipelineRunning
     ? data.activePipelineRequest?.status === "requested"
       ? "Pipeline requested"
@@ -107,6 +140,7 @@ export function ArticleOpsDashboard({
         : "Pipeline running"
     : "Run pipeline";
   const dailySchedule = data.pipelineSchedules.find((schedule) => schedule.scheduleKey === "daily_kakao_report") ?? null;
+  const weeklySchedule = data.pipelineSchedules.find((schedule) => schedule.scheduleKey === "weekly_kakao_report") ?? null;
   const articleFeedKey = [
     data.totalItems,
     data.items.map((item) => item.articleId).join("|"),
@@ -160,11 +194,72 @@ export function ArticleOpsDashboard({
         <aside className="order-1 space-y-5 xl:order-none xl:col-start-2 xl:row-start-2">
           <h2 className="text-xl font-semibold tracking-[-0.04em]">Settings</h2>
           <section className={panelClass}>
-            <div className="flex items-center gap-3">
-              <div className="rounded-2xl bg-moss/10 p-2 text-moss">
-                <GlobeIcon className="h-5 w-5" />
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="rounded-2xl bg-ember/10 p-2 text-ember">
+                  <BoltIcon className="h-5 w-5" />
+                </div>
+                <h2 className={sectionHeadingClass}>Target criteria</h2>
               </div>
-              <h2 className={sectionHeadingClass}>Target sources</h2>
+              <AsyncForm action="/api/priority-targets" className="shrink-0" confirmMessage="Clear all target criteria?">
+                <input name="intent" type="hidden" value="reset" />
+                <button
+                  aria-label="Clear target criteria"
+                  className="inline-flex h-9 items-center justify-center gap-1.5 rounded-2xl border border-slate-200 bg-white/50 px-3 text-xs font-semibold text-ink/55 hover:bg-white/80 disabled:cursor-not-allowed disabled:opacity-40"
+                  disabled={data.priorityTargets.length === 0}
+                  type="submit"
+                >
+                  <TrashIcon className="h-3.5 w-3.5" />
+                  Reset
+                </button>
+              </AsyncForm>
+            </div>
+
+            <div className="mt-5 flex flex-wrap gap-2">
+              {data.priorityTargets.map((target) => (
+                <AsyncForm key={target.id} action="/api/priority-targets" className="inline-flex">
+                  <input name="intent" type="hidden" value="delete" />
+                  <input name="targetId" type="hidden" value={String(target.id)} />
+                  <span className="inline-flex items-center gap-2 rounded-full border border-slate-200/75 bg-white/72 px-3 py-2 text-sm font-medium">
+                    <span>{target.label}</span>
+                    <button aria-label={`${target.label} delete`} className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-black/5 text-ink/55 hover:bg-black/10 hover:text-ink" type="submit">
+                      <XMarkIcon className="h-3.5 w-3.5" />
+                    </button>
+                  </span>
+                </AsyncForm>
+              ))}
+            </div>
+
+            <AsyncForm action="/api/priority-targets" className="mt-5 flex flex-col gap-2 sm:flex-row">
+              <input name="intent" type="hidden" value="add" />
+              <input className="min-h-11 flex-1 rounded-2xl border border-slate-200 bg-white px-4 text-sm outline-none" maxLength={240} name="label" placeholder="Vocabulary, discussion readiness" />
+              <button className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-ink px-4 text-sm font-semibold text-white hover:bg-ink/90" type="submit">
+                <PlusIcon className="h-4 w-4" />
+                Add
+              </button>
+            </AsyncForm>
+          </section>
+
+          <section className={panelClass}>
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="rounded-2xl bg-moss/10 p-2 text-moss">
+                  <GlobeIcon className="h-5 w-5" />
+                </div>
+                <h2 className={sectionHeadingClass}>Target sources</h2>
+              </div>
+              <AsyncForm action="/api/target-sources" className="shrink-0" confirmMessage="Clear all target sources?">
+                <input name="intent" type="hidden" value="reset" />
+                <button
+                  aria-label="Clear target sources"
+                  className="inline-flex h-9 items-center justify-center gap-1.5 rounded-2xl border border-slate-200 bg-white/50 px-3 text-xs font-semibold text-ink/55 hover:bg-white/80 disabled:cursor-not-allowed disabled:opacity-40"
+                  disabled={data.targetSources.length === 0}
+                  type="submit"
+                >
+                  <TrashIcon className="h-3.5 w-3.5" />
+                  Reset
+                </button>
+              </AsyncForm>
             </div>
 
             <div className="mt-5 flex flex-wrap gap-2">
@@ -185,7 +280,7 @@ export function ArticleOpsDashboard({
 
             <AsyncForm action="/api/target-sources" className="mt-5 flex flex-col gap-2 sm:flex-row">
               <input name="intent" type="hidden" value="add" />
-              <input className="min-h-11 flex-1 rounded-2xl border border-slate-200 bg-white px-4 text-sm outline-none" maxLength={120} name="domain" placeholder="https://www.wsj.com" />
+              <input className="min-h-11 flex-1 rounded-2xl border border-slate-200 bg-white px-4 text-sm outline-none" maxLength={500} name="domain" placeholder="https://www.wsj.com, ft.com" />
               <button className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-ink px-4 text-sm font-semibold text-white hover:bg-ink/90" type="submit">
                 <PlusIcon className="h-4 w-4" />
                 Add
@@ -194,15 +289,39 @@ export function ArticleOpsDashboard({
           </section>
 
           <section className={panelClass}>
-            <div className="flex items-center gap-3">
-              <div className="rounded-2xl bg-dusk/10 p-2 text-dusk">
-                <ClockIcon className="h-5 w-5" />
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="rounded-2xl bg-dusk/10 p-2 text-dusk">
+                  <ClockIcon className="h-5 w-5" />
+                </div>
+                <h2 className={sectionHeadingClass}>Schedules</h2>
               </div>
-              <h2 className={sectionHeadingClass}>Schedules</h2>
+              <AsyncForm action="/api/pipeline-schedules" className="shrink-0" confirmMessage="Reset schedule settings?">
+                <input name="intent" type="hidden" value="reset" />
+                <button aria-label="Reset schedules" className="inline-flex h-9 items-center justify-center gap-1.5 rounded-2xl border border-slate-200 bg-white/50 px-3 text-xs font-semibold text-ink/55 hover:bg-white/80" type="submit">
+                  <TrashIcon className="h-3.5 w-3.5" />
+                  Reset
+                </button>
+              </AsyncForm>
             </div>
 
             <div className="mt-5 space-y-5">
-              <PipelineScheduleForm schedule={dailySchedule} />
+              <PipelineScheduleForm
+                cadenceLabel="Daily"
+                helper="Multiple weekdays"
+                schedule={dailySchedule}
+                scheduleKey="daily_kakao_report"
+                title="Daily Kakao report"
+              />
+              <div className="border-t border-slate-200/75" />
+              <PipelineScheduleForm
+                cadenceLabel="Weekly"
+                helper="Single weekday"
+                maxCheckedValues={1}
+                schedule={weeklySchedule}
+                scheduleKey="weekly_kakao_report"
+                title="Weekly Kakao report"
+              />
             </div>
           </section>
 
@@ -223,7 +342,18 @@ export function ArticleOpsDashboard({
                   </AsyncForm>
                 ) : null}
 
-                <AsyncForm action="/api/pipeline-runs/test">
+                <AsyncForm action="/api/pipeline-runs/start" className="flex items-center gap-2">
+                  <label className="sr-only" htmlFor="pipeline-cadence">Run type</label>
+                  <select
+                    className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-ink outline-none disabled:cursor-not-allowed disabled:opacity-60"
+                    defaultValue="daily"
+                    disabled={data.isPipelineRunning}
+                    id="pipeline-cadence"
+                    name="cadence"
+                  >
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                  </select>
                   <button className="inline-flex h-9 items-center justify-center gap-2 rounded-xl bg-ink px-3 text-sm font-semibold text-white hover:bg-ink/90 disabled:cursor-not-allowed disabled:bg-ink/50" disabled={data.isPipelineRunning} type="submit">
                     {data.isPipelineRunning ? <ArrowPathIcon className="h-4 w-4 animate-spin" /> : <PlayIcon className="h-4 w-4" />}
                     {primaryActionLabel}
@@ -235,33 +365,41 @@ export function ArticleOpsDashboard({
             <div className="mt-5 rounded-2xl border border-slate-200/75 bg-white/70 p-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-sm font-semibold">{data.activePipelineRequest ? "Dispatcher queue" : (data.latestPipelineRun?.sourceScope ?? "Waiting")}</p>
+                  <p className="text-sm font-semibold">{flowScopeLabel}</p>
                   <p className="mt-1 text-xs uppercase tracking-[0.16em] text-ink/45">
-                    {data.activePipelineRequest?.requestedAt.replace("T", " ").slice(0, 16) ?? data.latestPipelineRun?.recordedAt.replace("T", " ").slice(0, 16) ?? "No run history"}
+                    {flowRecordedAtLabel}
                   </p>
                 </div>
                 {flowStatus ? <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${statusClasses(flowStatus)}`}>{prettyLabel(flowStatus)}</span> : null}
               </div>
 
               <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                <FlowMiniMetric label="Current" value={activeFlowStep?.stageLabel ?? "Idle"} />
+                <FlowMiniMetric label="Current" value={currentStageLabel} />
                 <FlowMiniMetric label="Done" value={`${completedFlowSteps} / ${data.pipelineFlowSteps.length}`} />
-                <FlowMiniMetric label="Next" value={nextFlowStep?.stageLabel ?? "Complete"} />
+                <FlowMiniMetric label="Next" value={nextStageLabel} />
               </div>
-              <div className="mt-4 h-2 overflow-hidden rounded-full bg-ember/10">
+              <div className="mt-4 flex items-center justify-between text-xs uppercase tracking-[0.16em] text-ink/45">
+                <span>Progress</span>
+                <span>{flowProgress}%</span>
+              </div>
+              <div className="mt-2 h-2 overflow-hidden rounded-full bg-ember/10">
                 <div className="h-full rounded-full bg-ember transition-[width]" style={{ width: `${flowProgress}%` }} />
               </div>
             </div>
 
             <div className="mt-5 space-y-3">
               {data.pipelineFlowSteps.map((step) => (
-                <div key={`${step.runId}-${step.stageKey}`} className="rounded-2xl border border-slate-200/75 bg-white/72 p-4">
+                <div key={`${step.runId}-${step.stageKey}`} className={`rounded-2xl border p-4 ${flowStepClasses(step.status)}`}>
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <p className="font-semibold">{step.stageOrder + 1}. {step.stageLabel}</p>
                       <p className="mt-2 text-sm leading-6 text-ink/62">{step.stageDetail}</p>
                     </div>
                     <span className={`shrink-0 rounded-full border px-3 py-1 text-xs font-semibold ${statusClasses(step.status)}`}>{prettyLabel(step.status)}</span>
+                  </div>
+                  <div className="mt-3 flex flex-wrap items-center gap-3 text-xs uppercase tracking-[0.16em] text-ink/45">
+                    <span>{step.stageKey}</span>
+                    <span>{step.updatedAt ? step.updatedAt.replace("T", " ").slice(0, 16) : "Waiting"}</span>
                   </div>
                 </div>
               ))}

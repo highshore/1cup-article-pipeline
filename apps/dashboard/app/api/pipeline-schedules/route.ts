@@ -12,22 +12,33 @@ function wantsAsyncResponse(request: Request) {
 
 export async function POST(request: Request) {
   const formData = await request.formData();
+  const intent = String(formData.get("intent") ?? "");
   const scheduleKey = String(formData.get("scheduleKey") ?? "");
   const timeOfDay = String(formData.get("timeOfDay") ?? "");
   const weekdays = formData
     .getAll("weekdays")
     .map((value) => Number(value))
     .filter((value) => Number.isInteger(value));
+  let mutationError: unknown = null;
 
   try {
+    if (intent === "reset") {
+      await mutatePipelineSchedule({ intent: "reset" });
+    }
+
     if (scheduleKey === "daily_kakao_report" || scheduleKey === "weekly_kakao_report") {
       await mutatePipelineSchedule({ scheduleKey, weekdays, timeOfDay });
     }
   } catch (error) {
+    mutationError = error;
     console.error("pipeline schedule mutation failed", error);
   }
 
   if (wantsAsyncResponse(request)) {
+    if (mutationError) {
+      return NextResponse.json({ ok: false, error: "pipeline-schedule-mutation-failed" }, { status: 500 });
+    }
+
     return NextResponse.json({ ok: true });
   }
 

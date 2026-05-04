@@ -18,8 +18,9 @@ export function AsyncForm({
   checkboxGroupName,
   maxCheckedValues,
   maxCheckedMessage,
+  confirmMessage,
   autoSubmit = false,
-  autoSubmitDelayMs = 250,
+  autoSubmitDelayMs = 350,
   children,
 }: {
   action?: string;
@@ -28,6 +29,7 @@ export function AsyncForm({
   checkboxGroupName?: string;
   maxCheckedValues?: number;
   maxCheckedMessage?: string;
+  confirmMessage?: string;
   autoSubmit?: boolean;
   autoSubmitDelayMs?: number;
   children: ReactNode;
@@ -51,7 +53,12 @@ export function AsyncForm({
 
     const form = event.currentTarget;
     const formData = new FormData(form);
+    const targetAction = action ?? form.action ?? pathname;
     const currentScrollY = window.scrollY;
+
+    if (confirmMessage && !window.confirm(confirmMessage)) {
+      return;
+    }
 
     if (checkboxGroupName && typeof maxCheckedValues === "number") {
       const checkedCount = formData.getAll(checkboxGroupName).filter((value) => typeof value === "string" && value !== "none").length;
@@ -83,7 +90,7 @@ export function AsyncForm({
         }
       }
 
-      await fetch(action ?? pathname, {
+      const response = await fetch(targetAction, {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
@@ -92,17 +99,24 @@ export function AsyncForm({
         body,
       });
 
+      if (!response.ok) {
+        throw new Error(`Unable to process the request. (${response.status})`);
+      }
+
       startTransition(() => {
         router.refresh();
       });
       restoreScrollPosition(currentScrollY);
       formRef.current?.reset();
+    } catch (error) {
+      console.error("dashboard form submission failed", error);
+      window.alert(error instanceof Error ? error.message : "Unable to process the request.");
     } finally {
       setIsPending(false);
     }
   };
 
-  const handleChange = () => {
+  const handleChange = (event: FormEvent<HTMLFormElement>) => {
     if (!autoSubmit || method !== "get") {
       return;
     }
@@ -111,9 +125,15 @@ export function AsyncForm({
       window.clearTimeout(autoSubmitTimeoutRef.current);
     }
 
+    const target = event.target;
+    const shouldDebounce =
+      target instanceof HTMLInputElement &&
+      (target.type === "search" || target.type === "text");
+    const delay = shouldDebounce ? autoSubmitDelayMs : 0;
+
     autoSubmitTimeoutRef.current = window.setTimeout(() => {
       formRef.current?.requestSubmit();
-    }, autoSubmitDelayMs);
+    }, delay);
   };
 
   return (
